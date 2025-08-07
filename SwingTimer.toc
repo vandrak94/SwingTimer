@@ -1,0 +1,6 @@
+## Interface: 11507
+## Title: Swing Timer
+## Notes: Shows a vertical swing timer with customizable color and position
+## Version: 1.1
+## SavedVariables: SwingTimerSettings
+SwingTimer.lua
