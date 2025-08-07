@@ -5,12 +5,12 @@ print(addonName)
 
 -- Default settings
 local defaults = {
-    color = { r = 1, g = 0, b = 0 },
-    position = { x = 99, y = 57 },
-    barOpacity = 0.5,                    -- 80% opacity default
-    barWidth = 15,
-    barHeight = 200,
-    fontSize = 14,
+    color = { r = 1, g = 0.5, b = 0 },
+    position = { x = -107.5556945800781, y = -0.4321538805961609 },
+    barOpacity = 0.5,
+    barWidth = 10,
+    barHeight = 143,
+    fontSize = 10,
 }
 
 -- Wait for the addon to be fully loaded
@@ -106,13 +106,32 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         frame.text:ClearAllPoints()
         frame.text:SetPoint("TOP", frame, "BOTTOM", 0, -5)
         frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
-        frame.text:SetTextColor(1, 1, 1)
+        frame.text:SetTextColor(1, 1, 1, stagedBarOpacity)
 
         -- Icon of casted spell above the bar
         frame.icon = frame:CreateTexture(nil, "ARTWORK")
-        frame.icon:SetSize(32, 32)
+        frame.icon:SetSize(24, 24)
         frame.icon:SetPoint("BOTTOM", frame, "TOP", 0, 10)
+        frame.icon:SetAlpha(stagedBarOpacity)
         frame.icon:Hide()
+
+        -- Create a frame to act as border container
+        local borderFrame = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+        borderFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)    -- slightly bigger than bar
+        borderFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, -2)
+
+        borderFrame:SetBackdrop({
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        borderFrame:SetBackdropBorderColor(1, 1, 1, stagedBarOpacity)
+
+        local function ReloadOpacity()
+            frame.icon:SetAlpha(stagedBarOpacity)
+            frame.text:SetTextColor(1, 1, 1, stagedBarOpacity)
+            borderFrame:SetBackdropBorderColor(1, 1, 1, stagedBarOpacity)
+        end
 
         local maxTime = 0
         local elapsedTime = 0
@@ -155,10 +174,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
             frame.text:SetText(string.format("%.2f", maxTime))
             frame:Show()
+            frame.icon:SetTexture(select(3, GetSpellInfo(78)))
+            frame.icon:Show()
         end
 
         local function HideBar()
             frame:Hide()
+            frame.icon:Hide()
+            frame.icon:SetTexture(nil)
             paused = false
         end
 
@@ -174,26 +197,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         events:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
         events:RegisterEvent("UNIT_SPELLCAST_SENT")
         events:RegisterEvent("PLAYER_TARGET_CHANGED")
-
-        -- Create swing bar frame if not already created
-        if not frame then frame = CreateFrame("Frame", nil, UIParent) end
-        frame:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background"})
-        frame:SetSize(100, 10)
-        frame:SetPoint("CENTER")
-        frame:Show()
-
-        -- Always (re)create the icon properly
-        if frame.icon then
-            frame.icon:Hide()
-            frame.icon:SetTexture(nil)
-        else
-            frame.icon = frame:CreateTexture(nil, "OVERLAY")
-        end
-        frame.icon:SetDrawLayer("OVERLAY", 7)
-        frame.icon:SetSize(24, 24)
-        frame.icon:SetPoint("BOTTOM", frame, "TOP", 0, 2)
-        frame.icon:SetAlpha(1)
-        frame.icon:Show()
 
         -- Event handler function
         events:SetScript("OnEvent", function(self, event, ...)
@@ -322,6 +325,22 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         settings.title:SetPoint("TOP", settings, "TOP", 0, -5)
         settings.title:SetText("Swing Timer Settings")
 
+        local function ShowSwingTimerSettings()
+            if InCombatLockdown() then
+                print("Cannot open settings while in combat.")
+                return
+            end
+
+            -- Show your settings frame here
+            settings:Show()
+            ShowPausedBar()
+        end
+
+        SwingTimerSettingsFrame:SetScript("OnHide", function(self)
+            ReloadOpacity()
+            HideBar()
+        end)
+
         -- Color sliders factory
         local function CreateColorSlider(name, label, yOffset, colorKey)
             local slider = CreateFrame("Slider", name, settings, "OptionsSliderTemplate")
@@ -364,6 +383,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         opacitySlider:SetScript("OnValueChanged", function(self, value)
             stagedBarOpacity = value
             frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
+            ReloadOpacity()
         end)
 
         -- Bar Width Slider
@@ -451,7 +471,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             settingsData.position.y = yOfs or 0
 
             settings:Hide()
-            HideBar()
         end)
 
         -- Reset Button
@@ -484,6 +503,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             frame:SetSize(stagedBarWidth, stagedBarHeight)
             frame.texture:SetHeight(stagedBarHeight)
             frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
+            ReloadOpacity()
         end)
 
         -- Slash command to toggle settings
@@ -491,7 +511,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         SlashCmdList["SWINGTIMER"] = function()
             if settings:IsShown() then
                 settings:Hide()
-                HideBar()
             else
                 -- Update sliders to staged values before showing
                 redSlider:SetValue(stagedColor.r)
@@ -503,8 +522,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 fontSizeSlider:SetValue(stagedFontSize)
 
                 -- Show settings and show bar fully loaded and paused
-                settings:Show()
-                ShowPausedBar()
+                ShowSwingTimerSettings()
             end
         end
 
@@ -527,7 +545,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 -- Open/close settings on normal click (no drag)
                 if settings:IsShown() then
                     settings:Hide()
-                    HideBar()
                 else
                     SlashCmdList["SWINGTIMER"]()
                 end
