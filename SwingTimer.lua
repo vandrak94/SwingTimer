@@ -7,13 +7,13 @@ print(addonName)
 local defaults = {
     color = { r = 1, g = 0.5, b = 0 },
     position = { x = -107.5556945800781, y = -0.4321538805961609 },
-    barOpacity = 0.8,
+    opacity = 0.8,
     barWidth = 22,
-    barHeight = 150,
+    barHeight = 151,
     fontSize = 9,
     iconHeight = 24,
     iconWidth = 24,
-    scale = 1,
+    scale = 1.2,
 }
 
 -- Wait for the addon to be fully loaded
@@ -51,7 +51,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 g = settingsData.color.g,
                 b = settingsData.color.b
             }
-            local stagedBarOpacity = settingsData.barOpacity
+            local stagedOpacity = settingsData.opacity or defaults.opacity
             local stagedBarWidth = defaults.barWidth
             local stagedBarHeight = defaults.barHeight
             local stagedFontSize = defaults.fontSize
@@ -81,9 +81,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     --print("Registered swing-replacing spell:", name)
                 end
             end
+            
+            local frame -- SWING BAR
+            local borderFrame -- SWING BAR BORDER
+            local debuffBar -- DEBUFF BAR
+            local events -- EVENT TRACKING
+            local settings -- SETTINGS PANEL
+            local minimapIcon -- MINIMAP ICON
 
         -- === SWING BAR ===
-        local frame = CreateFrame("Frame", "SwingTimerFrame", UIParent, "BackdropTemplate")
+        frame = CreateFrame("Frame", "SwingTimerFrame", UIParent, "BackdropTemplate")
         frame:SetSize((stagedBarWidth*stagedScale), (stagedBarHeight*stagedScale))
         frame:SetPoint("CENTER", UIParent, "CENTER", settingsData.position.x, settingsData.position.y)
         frame:SetMovable(true)
@@ -96,7 +103,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         frame:Hide()
 
         frame.texture = frame:CreateTexture(nil, "BACKGROUND")
-        frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
+        frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedOpacity)
         frame.texture:SetPoint("BOTTOM", frame, "BOTTOM")
         frame.texture:SetPoint("LEFT", frame, "LEFT")
         frame.texture:SetPoint("RIGHT", frame, "RIGHT")
@@ -106,7 +113,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         frame.icon = frame:CreateTexture(nil, "ARTWORK")
         frame.icon:SetSize(stagedIconWidth*stagedScale, stagedIconHeight*stagedScale)
         frame.icon:SetPoint("BOTTOM", frame, "TOP", 0, 5)
-        frame.icon:SetAlpha(stagedBarOpacity)
+        frame.icon:SetAlpha(stagedOpacity)
         frame.icon:Hide()
 
         -- Position text below the bar
@@ -114,10 +121,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         frame.text:ClearAllPoints()
         frame.text:SetPoint("TOP", frame, "BOTTOM", 0, -5)
         frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
-        frame.text:SetTextColor(1, 1, 1, stagedBarOpacity)
+        frame.text:SetTextColor(1, 1, 1, stagedOpacity)
 
         -- Create a frame to act as border container
-        local borderFrame = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+        borderFrame = CreateFrame("Frame", nil, frame, "BackdropTemplate")
         borderFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)    -- slightly bigger than bar
         borderFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, -2)
 
@@ -126,13 +133,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             edgeSize = 10,
             insets = { left = 2, right = 2, top = 2, bottom = 2 },
         })
-        borderFrame:SetBackdropBorderColor(1, 1, 1, stagedBarOpacity)
-
-        local function ReloadOpacity()
-            frame.icon:SetAlpha(stagedBarOpacity)
-            frame.text:SetTextColor(1, 1, 1, stagedBarOpacity)
-            borderFrame:SetBackdropBorderColor(1, 1, 1, stagedBarOpacity)
-        end
+        borderFrame:SetBackdropBorderColor(1, 1, 1, stagedOpacity)
 
         local maxTime = 0
         local elapsedTime = 0
@@ -152,14 +153,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         end
 
         frame:SetScript("OnUpdate", OnUpdate)
-
+        
         local function StartSwingTimer(speed)
             maxTime = speed
             elapsedTime = 0
             paused = false
             frame:SetSize(stagedBarWidth*stagedScale, stagedBarHeight*stagedScale)
             frame.texture:SetHeight(stagedBarHeight*stagedScale)
-            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
+            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedOpacity)
             frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
             frame:Show()
         end
@@ -171,7 +172,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             paused = true
             frame:SetSize(stagedBarWidth*stagedScale, stagedBarHeight*stagedScale)
             frame.texture:SetHeight(stagedBarHeight*stagedScale)
-            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
+            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedOpacity)
             frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
             frame.text:SetText(string.format("%.2f", maxTime))
             frame:Show()
@@ -186,8 +187,112 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             paused = false
         end
 
+        -- === DEBUFF BAR ===
+        debuffBar = CreateFrame("Frame", "SwingTimerDebuffBar", UIParent)
+        debuffBar:SetSize(stagedBarWidth * stagedScale, stagedBarHeight * stagedScale)
+        debuffBar:SetPoint("RIGHT", frame, "LEFT", -5, 0) -- Left side of swing bar
+        debuffBar:SetAlpha(stagedOpacity)
+        debuffBar.icons = {}
+
+        local function UpdateDebuffBar()
+            if not settings:IsShown() then
+                if not UnitExists("target") or not UnitCanAttack("player", "target") then
+                    --print("Hiding icons...")
+                    for _, icon in ipairs(debuffBar.icons) do
+                        icon:Hide()
+                    end
+                    return
+                end
+
+                local debuffs = {}
+                for i = 1, 40 do
+                    local name, iconTexture, count, debuffType, duration, expirationTime, source, _, _, spellId = UnitDebuff("target", i)
+                    if not name then break end
+                    if source == "player" and duration and expirationTime then
+                        local remaining = expirationTime - GetTime()
+                        if remaining > 0 then
+                            table.insert(debuffs, {
+                                name = name,
+                                icon = iconTexture,
+                                duration = duration,
+                                expirationTime = expirationTime,
+                                remaining = remaining,
+                                spellId = spellId,
+                            })
+                        end
+                    end
+                end
+
+                table.sort(debuffs, function(a, b)
+                    return a.remaining < b.remaining
+                end)
+
+                -- Show debuff icons
+                for i = 1, #debuffs do
+                    local data = debuffs[i]
+                    local icon = debuffBar.icons[i]
+
+                    if not icon then
+                        icon = CreateFrame("Frame", nil, debuffBar)
+                        icon:SetSize(stagedIconWidth * stagedScale, stagedIconHeight * stagedScale)
+                        icon.texture = icon:CreateTexture(nil, "ARTWORK")
+                        icon.texture:SetAllPoints()
+                        icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, -1)
+                        icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                        debuffBar.icons[i] = icon
+                    end
+
+                    icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * (stagedIconHeight * stagedScale + 2)))
+                    icon.texture:SetTexture(data.icon)
+                    icon.text:SetText(string.format("%.1f", data.remaining))
+                    icon:Show()
+                end
+
+                -- Hide unused icons
+                for i = #debuffs + 1, #debuffBar.icons do
+                    debuffBar.icons[i]:Hide()
+                end
+            end
+        end
+
+        debuffBar:SetScript("OnUpdate", function(self, elapsed)
+            UpdateDebuffBar()
+        end)
+
+        local function ShowTemporaryDebuffs()
+            --print("Show temp debuffs")
+            for i = 1, 6 do
+                local icon = debuffBar.icons[i]
+
+                if not icon then
+                    icon = CreateFrame("Frame", nil, debuffBar)
+                    icon:SetSize(stagedIconWidth * stagedScale, stagedIconHeight * stagedScale)
+                    icon.texture = icon:CreateTexture(nil, "ARTWORK")
+                    icon.texture:SetAllPoints()
+                    icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, -1)
+                    icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                    debuffBar.icons[i] = icon
+                    --print("Create icon", i)
+                end
+
+                icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * (stagedIconHeight * stagedScale + 2)))
+                icon.texture:SetTexture(select(3, GetSpellInfo(772)))
+                icon.text:SetText(string.format("%.1f", 0))
+                icon:Show()
+            end
+        end
+
+        local function ReloadOpacity()
+            frame.icon:SetAlpha(stagedOpacity)
+            frame.text:SetTextColor(1, 1, 1, stagedOpacity)
+            borderFrame:SetBackdropBorderColor(1, 1, 1, stagedOpacity)
+            debuffBar:SetAlpha(stagedOpacity)
+        end
+
         -- === EVENT TRACKING ===
-        local events = CreateFrame("Frame")
+        events = CreateFrame("Frame")
 
         -- Register all relevant events
         events:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
@@ -213,9 +318,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         frame.icon:Show()
                         isQueuedSpellActive = true
                     end
+                    UpdateDebuffBar()
                 else
-                    -- Do nothing: a non-swing-replacing spell like Rend was used
-                    --print("Non-swing-replacing spell used:", spellName)
+                    UpdateDebuffBar()
                 end
             elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
                 local unit, castGUID, spellID = ...
@@ -229,6 +334,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         frame.icon:Show()
                         isQueuedSpellActive = true
                     end
+                    UpdateDebuffBar()
                 end
             elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
                 local timestamp, subevent, _, sourceGUID, _, _, _, _, destName, _, _, spellID, spellName = CombatLogGetCurrentEventInfo()
@@ -278,6 +384,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                             isQueuedSpellActive = false
                         end
                     end
+                    UpdateDebuffBar()
                 end
             elseif event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_LOGIN" then
                 --print("Resetting on event:", event)
@@ -285,6 +392,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 queuedSpellName = nil
                 queuedSpellTexture = nil
                 isQueuedSpellActive = false
+                UpdateDebuffBar()
             elseif event == "PLAYER_TARGET_CHANGED" then
                 if not UnitAffectingCombat("player") then
                     -- Player not in combat, ignore target changes
@@ -305,13 +413,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         StartSwingTimer(speed)
                     end
                 end
+                UpdateDebuffBar()
             end
         end)
 
-
         -- === SETTINGS PANEL ===
 
-        local settings = CreateFrame("Frame", "SwingTimerSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
+        settings = CreateFrame("Frame", "SwingTimerSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
         settings:SetSize(300, 270)
         settings:SetPoint("CENTER")
         settings:SetMovable(true)
@@ -328,13 +436,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
         local function ShowSwingTimerSettings()
             if InCombatLockdown() then
-                print("Cannot open settings while in combat.")
+                UIErrorsFrame:AddMessage("Cannot open settings while in combat.", 1, 0, 0, 1, 53)
                 return
             end
 
             -- Show your settings frame here
             settings:Show()
             ShowPausedBar()
+            ShowTemporaryDebuffs()
         end
 
         SwingTimerSettingsFrame:SetScript("OnHide", function(self)
@@ -358,7 +467,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             slider:SetScript("OnValueChanged", function(self, value)
                 stagedColor[colorKey] = value
-                frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
+                frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedOpacity)
             end)
 
             return slider
@@ -379,11 +488,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         _G[opacitySlider:GetName() .. "High"]:SetText("100%")
         _G[opacitySlider:GetName() .. "Text"]:SetText("Opacity")
 
-        opacitySlider:SetValue(stagedBarOpacity)
+        opacitySlider:SetValue(stagedOpacity)
 
         opacitySlider:SetScript("OnValueChanged", function(self, value)
-            stagedBarOpacity = value
-            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
+            stagedOpacity = value
+            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedOpacity)
             ReloadOpacity()
         end)
 
@@ -406,6 +515,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             frame.texture:SetHeight(stagedBarHeight*stagedScale)
             frame.icon:SetSize(stagedIconWidth*stagedScale, stagedIconHeight*stagedScale)
             frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
+            debuffBar:SetSize(stagedBarWidth * stagedScale, stagedBarHeight * stagedScale)
+            for i=1, 6 do
+                local icon = debuffBar.icons[i]
+                icon:SetSize(stagedIconWidth * stagedScale, stagedIconHeight * stagedScale)
+                icon.texture:SetAllPoints()
+                icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, -1)
+                icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * (stagedIconHeight * stagedScale + 2)))
+                debuffBar.icons[i] = icon
+            end
         end)
 
         -- Apply Button
@@ -421,11 +540,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             settingsData.color.r = stagedColor.r
             settingsData.color.g = stagedColor.g
             settingsData.color.b = stagedColor.b
-            settingsData.barOpacity = stagedBarOpacity
+            settingsData.opacity = stagedOpacity
             settingsData.scale = stagedScale
 
             -- Apply settings
-            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
+            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedOpacity)
 
             -- Save position
             local point, relativeTo, relativePoint, xOfs, yOfs = frame:GetPoint()
@@ -450,17 +569,15 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             stagedColor.r = defaults.color.r
             stagedColor.g = defaults.color.g
             stagedColor.b = defaults.color.b
-            stagedBarOpacity = defaults.barOpacity
+            stagedOpacity = defaults.opacity
             stagedScale = defaults.scale
 
             redSlider:SetValue(stagedColor.r)
             greenSlider:SetValue(stagedColor.g)
             blueSlider:SetValue(stagedColor.b)
-            opacitySlider:SetValue(stagedBarOpacity)
+            opacitySlider:SetValue(stagedOpacity)
             scaleSlider:SetValue(stagedScale)
 
-            frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
-            ReloadOpacity()
         end)
 
         -- Slash command to toggle settings
@@ -473,7 +590,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 redSlider:SetValue(stagedColor.r)
                 greenSlider:SetValue(stagedColor.g)
                 blueSlider:SetValue(stagedColor.b)
-                opacitySlider:SetValue(stagedBarOpacity)
+                opacitySlider:SetValue(stagedOpacity)
                 scaleSlider:SetValue(stagedScale)
 
                 -- Show settings and show bar fully loaded and paused
@@ -482,17 +599,36 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         end
 
         -- === MINIMAP ICON ===
-        local minimapIcon = CreateFrame("Button", "SwingTimerMinimapButton", Minimap)
-        minimapIcon:SetSize(25, 25) -- smaller icon size
+        minimapIcon = CreateFrame("Button", "SwingTimerMinimapButton", Minimap)
+        minimapIcon:SetSize(25, 25)
         minimapIcon:SetFrameStrata("MEDIUM")
-        minimapIcon:SetPoint("BOTTOMLEFT", Minimap, "BOTTOMLEFT", -5, -5)
+        minimapIcon:SetPoint("BOTTOMLEFT", Minimap, "BOTTOMLEFT", 0, 0)
 
         -- Icon texture (sword)
         local iconTexture = minimapIcon:CreateTexture(nil, "BACKGROUND")
-        iconTexture:SetAllPoints()
-        iconTexture:SetTexture("Interface\\Icons\\INV_Sword_04")
+        iconTexture:SetPoint("CENTER")
+        iconTexture:SetSize(minimapIcon:GetWidth() * 0.7, minimapIcon:GetHeight() * 0.7) -- smaller so fits border hole
+        iconTexture:SetTexture(GetSpellTexture(78))
+        iconTexture:SetTexCoord(0.07, 0.93, 0.07, 0.93) -- optional zoom for better fit
 
-        minimapIcon:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+        -- Apply circular mask (Retail + Classic support)
+        local mask = minimapIcon:CreateMaskTexture()
+        mask:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+        mask:SetAllPoints(iconTexture)
+        iconTexture:AddMaskTexture(mask)
+
+        local border = minimapIcon:CreateTexture(nil, "OVERLAY")
+        border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+        border:SetTexCoord(0.05, 0.95, 0.05, 0.95) -- crop out transparent edges
+        border:SetSize(minimapIcon:GetWidth() + 22, minimapIcon:GetHeight() + 22)
+        border:SetPoint("CENTER", minimapIcon, "CENTER", 10, -10)
+
+        minimapIcon:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")    
+        local highlight = minimapIcon:GetHighlightTexture()
+        highlight:ClearAllPoints()
+        highlight:SetPoint("CENTER", minimapIcon, "CENTER", 0, 0)
+        highlight:SetSize(minimapIcon:GetWidth() + 5, minimapIcon:GetHeight() + 5) -- match border size
+        highlight:SetTexCoord(0.05, 0.95, 0.05, 0.95) -- crop padding like border
 
         minimapIcon:RegisterForClicks("LeftButtonUp")
         minimapIcon:SetScript("OnClick", function(self, button)
@@ -542,6 +678,17 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 minimapIcon.isDragging = false
                 minimapIcon:StopMovingOrSizing()
             end
+        end)
+
+        minimapIcon:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
+            GameTooltip:SetText("Swing Timer Settings", 1, 1, 1 , wrap, font, 15, flags)
+            GameTooltip:AddLine("Left-click to toggle.", true)
+            GameTooltip:Show()
+        end)
+
+        minimapIcon:SetScript("OnLeave", function(self)
+            GameTooltip:Hide()
         end)
     end
 end)
