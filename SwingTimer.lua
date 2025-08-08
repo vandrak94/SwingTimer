@@ -7,10 +7,13 @@ print(addonName)
 local defaults = {
     color = { r = 1, g = 0.5, b = 0 },
     position = { x = -107.5556945800781, y = -0.4321538805961609 },
-    barOpacity = 0.5,
-    barWidth = 10,
-    barHeight = 143,
-    fontSize = 10,
+    barOpacity = 0.8,
+    barWidth = 22,
+    barHeight = 150,
+    fontSize = 9,
+    iconHeight = 24,
+    iconWidth = 24,
+    scale = 1,
 }
 
 -- Wait for the addon to be fully loaded
@@ -42,11 +45,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 end
             end
 
-            settingsData.barOpacity = settingsData.barOpacity or defaults.barOpacity
-            settingsData.barWidth = settingsData.barWidth or defaults.barWidth
-            settingsData.barHeight = settingsData.barHeight or defaults.barHeight
-            settingsData.fontSize = settingsData.fontSize or defaults.fontSize
-
             -- Staged settings (live sliders)
             local stagedColor = {
                 r = settingsData.color.r,
@@ -54,9 +52,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 b = settingsData.color.b
             }
             local stagedBarOpacity = settingsData.barOpacity
-            local stagedBarWidth = settingsData.barWidth
-            local stagedBarHeight = settingsData.barHeight
-            local stagedFontSize = settingsData.fontSize
+            local stagedBarWidth = defaults.barWidth
+            local stagedBarHeight = defaults.barHeight
+            local stagedFontSize = defaults.fontSize
+            local stagedIconHeight = defaults.iconHeight
+            local stagedIconWidth = defaults.iconWidth
+            local stagedScale = settingsData.scale or defaults.scale
 
             local queuedSpellName = nil
             local queuedSpellTexture = nil
@@ -83,7 +84,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
         -- === SWING BAR ===
         local frame = CreateFrame("Frame", "SwingTimerFrame", UIParent, "BackdropTemplate")
-        frame:SetSize(stagedBarWidth, stagedBarHeight)
+        frame:SetSize((stagedBarWidth*stagedScale), (stagedBarHeight*stagedScale))
         frame:SetPoint("CENTER", UIParent, "CENTER", settingsData.position.x, settingsData.position.y)
         frame:SetMovable(true)
         frame:EnableMouse(true)
@@ -99,21 +100,21 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         frame.texture:SetPoint("BOTTOM", frame, "BOTTOM")
         frame.texture:SetPoint("LEFT", frame, "LEFT")
         frame.texture:SetPoint("RIGHT", frame, "RIGHT")
-        frame.texture:SetHeight(stagedBarHeight)
-
-        frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        -- Position text below the bar
-        frame.text:ClearAllPoints()
-        frame.text:SetPoint("TOP", frame, "BOTTOM", 0, -5)
-        frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
-        frame.text:SetTextColor(1, 1, 1, stagedBarOpacity)
+        frame.texture:SetHeight(stagedBarHeight*stagedScale)
 
         -- Icon of casted spell above the bar
         frame.icon = frame:CreateTexture(nil, "ARTWORK")
-        frame.icon:SetSize(24, 24)
-        frame.icon:SetPoint("BOTTOM", frame, "TOP", 0, 10)
+        frame.icon:SetSize(stagedIconWidth*stagedScale, stagedIconHeight*stagedScale)
+        frame.icon:SetPoint("BOTTOM", frame, "TOP", 0, 5)
         frame.icon:SetAlpha(stagedBarOpacity)
         frame.icon:Hide()
+
+        -- Position text below the bar
+        frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        frame.text:ClearAllPoints()
+        frame.text:SetPoint("TOP", frame, "BOTTOM", 0, -5)
+        frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
+        frame.text:SetTextColor(1, 1, 1, stagedBarOpacity)
 
         -- Create a frame to act as border container
         local borderFrame = CreateFrame("Frame", nil, frame, "BackdropTemplate")
@@ -145,7 +146,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             else
                 local remaining = maxTime - elapsedTime
                 local progress = remaining / maxTime
-                frame.texture:SetHeight(stagedBarHeight * progress)
+                frame.texture:SetHeight((stagedBarHeight*stagedScale) * progress)
                 frame.text:SetText(string.format("%.2f", remaining))
             end
         end
@@ -156,10 +157,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             maxTime = speed
             elapsedTime = 0
             paused = false
-            frame:SetSize(stagedBarWidth, stagedBarHeight)
-            frame.texture:SetHeight(stagedBarHeight)
+            frame:SetSize(stagedBarWidth*stagedScale, stagedBarHeight*stagedScale)
+            frame.texture:SetHeight(stagedBarHeight*stagedScale)
             frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
-            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
+            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
             frame:Show()
         end
 
@@ -168,10 +169,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             maxTime = speed
             elapsedTime = 0
             paused = true
-            frame:SetSize(stagedBarWidth, stagedBarHeight)
-            frame.texture:SetHeight(stagedBarHeight)
+            frame:SetSize(stagedBarWidth*stagedScale, stagedBarHeight*stagedScale)
+            frame.texture:SetHeight(stagedBarHeight*stagedScale)
             frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
-            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
+            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
             frame.text:SetText(string.format("%.2f", maxTime))
             frame:Show()
             frame.icon:SetTexture(select(3, GetSpellInfo(78)))
@@ -311,7 +312,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- === SETTINGS PANEL ===
 
         local settings = CreateFrame("Frame", "SwingTimerSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
-        settings:SetSize(300, 350)
+        settings:SetSize(300, 270)
         settings:SetPoint("CENTER")
         settings:SetMovable(true)
         settings:EnableMouse(true)
@@ -363,9 +364,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             return slider
         end
 
-        local redSlider = CreateColorSlider("SwingTimerRedSlider", "Red", -40, "r")
-        local greenSlider = CreateColorSlider("SwingTimerGreenSlider", "Green", -70, "g")
-        local blueSlider = CreateColorSlider("SwingTimerBlueSlider", "Blue", -100, "b")
+        local redSlider = CreateColorSlider("SwingTimerRedSlider", "Red", -50, "r")
+        local greenSlider = CreateColorSlider("SwingTimerGreenSlider", "Green", -80, "g")
+        local blueSlider = CreateColorSlider("SwingTimerBlueSlider", "Blue", -110, "b")
 
         -- Bar Opacity Slider
         local opacitySlider = CreateFrame("Slider", "SwingTimerBarOpacitySlider", settings, "OptionsSliderTemplate")
@@ -376,7 +377,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         opacitySlider:SetPoint("TOP", settings, "TOP", 0, -140)
         _G[opacitySlider:GetName() .. "Low"]:SetText("10%")
         _G[opacitySlider:GetName() .. "High"]:SetText("100%")
-        _G[opacitySlider:GetName() .. "Text"]:SetText("Bar Opacity")
+        _G[opacitySlider:GetName() .. "Text"]:SetText("Opacity")
 
         opacitySlider:SetValue(stagedBarOpacity)
 
@@ -386,91 +387,54 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             ReloadOpacity()
         end)
 
-        -- Bar Width Slider
-        local widthSlider = CreateFrame("Slider", "SwingTimerBarWidthSlider", settings, "OptionsSliderTemplate")
-        widthSlider:SetWidth(220)
-        widthSlider:SetMinMaxValues(10, 100)
-        widthSlider:SetValueStep(1)
-        widthSlider:SetObeyStepOnDrag(true)
-        widthSlider:SetPoint("TOP", settings, "TOP", 0, -180)
-        _G[widthSlider:GetName() .. "Low"]:SetText("10")
-        _G[widthSlider:GetName() .. "High"]:SetText("100")
-        _G[widthSlider:GetName() .. "Text"]:SetText("Bar Width")
+        -- Scale Slider
+        local scaleSlider = CreateFrame("Slider", "SwingTimerScaleSlider", settings, "OptionsSliderTemplate")
+        scaleSlider:SetWidth(220)
+        scaleSlider:SetMinMaxValues(0.5, 2)
+        scaleSlider:SetValueStep(0.1)
+        scaleSlider:SetObeyStepOnDrag(true)
+        scaleSlider:SetPoint("TOP", settings, "TOP", 0, -170)
+        _G[scaleSlider:GetName() .. "Low"]:SetText("0.5")
+        _G[scaleSlider:GetName() .. "High"]:SetText("2")
+        _G[scaleSlider:GetName() .. "Text"]:SetText("Scale")
 
-        widthSlider:SetValue(stagedBarWidth)
+        scaleSlider:SetValue(stagedScale)
 
-        widthSlider:SetScript("OnValueChanged", function(self, value)
-            stagedBarWidth = value
-            frame:SetWidth(stagedBarWidth)
+        scaleSlider:SetScript("OnValueChanged", function(self, value)
+            stagedScale = value
+            frame:SetSize((stagedBarWidth*stagedScale), (stagedBarHeight*stagedScale))
+            frame.texture:SetHeight(stagedBarHeight*stagedScale)
+            frame.icon:SetSize(stagedIconWidth*stagedScale, stagedIconHeight*stagedScale)
+            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
         end)
 
-        -- Bar Height Slider
-        local heightSlider = CreateFrame("Slider", "SwingTimerBarHeightSlider", settings, "OptionsSliderTemplate")
-        heightSlider:SetWidth(220)
-        heightSlider:SetMinMaxValues(50, 400)
-        heightSlider:SetValueStep(1)
-        heightSlider:SetObeyStepOnDrag(true)
-        heightSlider:SetPoint("TOP", settings, "TOP", 0, -220)
-        _G[heightSlider:GetName() .. "Low"]:SetText("50")
-        _G[heightSlider:GetName() .. "High"]:SetText("400")
-        _G[heightSlider:GetName() .. "Text"]:SetText("Bar Height")
+        -- Apply Button
+        local applyBtn = CreateFrame("Button", nil, settings, "GameMenuButtonTemplate")
+        applyBtn:SetPoint("BOTTOMLEFT", settings, "BOTTOMLEFT", 15, 15)
+        applyBtn:SetSize(120, 25)
+        applyBtn:SetText("Apply")
+        applyBtn:SetNormalFontObject("GameFontNormal")
+        applyBtn:SetHighlightFontObject("GameFontHighlight")
 
-        heightSlider:SetValue(stagedBarHeight)
-
-        heightSlider:SetScript("OnValueChanged", function(self, value)
-            stagedBarHeight = value
-            frame:SetHeight(stagedBarHeight)
-            frame.texture:SetHeight(stagedBarHeight)
-        end)
-
-        -- Font Size Slider
-        local fontSizeSlider = CreateFrame("Slider", "SwingTimerFontSizeSlider", settings, "OptionsSliderTemplate")
-        fontSizeSlider:SetWidth(220)
-        fontSizeSlider:SetMinMaxValues(8, 30)
-        fontSizeSlider:SetValueStep(1)
-        fontSizeSlider:SetObeyStepOnDrag(true)
-        fontSizeSlider:SetPoint("TOP", settings, "TOP", 0, -260)
-        _G[fontSizeSlider:GetName() .. "Low"]:SetText("8")
-        _G[fontSizeSlider:GetName() .. "High"]:SetText("30")
-        _G[fontSizeSlider:GetName() .. "Text"]:SetText("Font Size")
-
-        fontSizeSlider:SetValue(stagedFontSize)
-
-        fontSizeSlider:SetScript("OnValueChanged", function(self, value)
-            stagedFontSize = value
-            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
-        end)
-
-        -- Save Button
-        local saveBtn = CreateFrame("Button", nil, settings, "GameMenuButtonTemplate")
-        saveBtn:SetPoint("BOTTOMLEFT", settings, "BOTTOMLEFT", 15, 15)
-        saveBtn:SetSize(120, 25)
-        saveBtn:SetText("Save")
-        saveBtn:SetNormalFontObject("GameFontNormal")
-        saveBtn:SetHighlightFontObject("GameFontHighlight")
-
-        saveBtn:SetScript("OnClick", function()
+        applyBtn:SetScript("OnClick", function()
             -- Save current staged settings
             settingsData.color.r = stagedColor.r
             settingsData.color.g = stagedColor.g
             settingsData.color.b = stagedColor.b
             settingsData.barOpacity = stagedBarOpacity
-            settingsData.barWidth = stagedBarWidth
-            settingsData.barHeight = stagedBarHeight
-            settingsData.fontSize = stagedFontSize
+            settingsData.scale = stagedScale
 
             -- Apply settings
             frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
-            frame:SetSize(stagedBarWidth, stagedBarHeight)
-            frame.texture:SetHeight(stagedBarHeight)
-            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
 
             -- Save position
             local point, relativeTo, relativePoint, xOfs, yOfs = frame:GetPoint()
             settingsData.position.x = xOfs or 0
             settingsData.position.y = yOfs or 0
 
+            -- Hide settings
             settings:Hide()
+
         end)
 
         -- Reset Button
@@ -487,22 +451,15 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             stagedColor.g = defaults.color.g
             stagedColor.b = defaults.color.b
             stagedBarOpacity = defaults.barOpacity
-            stagedBarWidth = defaults.barWidth
-            stagedBarHeight = defaults.barHeight
-            stagedFontSize = defaults.fontSize
+            stagedScale = defaults.scale
 
             redSlider:SetValue(stagedColor.r)
             greenSlider:SetValue(stagedColor.g)
             blueSlider:SetValue(stagedColor.b)
             opacitySlider:SetValue(stagedBarOpacity)
-            widthSlider:SetValue(stagedBarWidth)
-            heightSlider:SetValue(stagedBarHeight)
-            fontSizeSlider:SetValue(stagedFontSize)
+            scaleSlider:SetValue(stagedScale)
 
             frame.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b, stagedBarOpacity)
-            frame:SetSize(stagedBarWidth, stagedBarHeight)
-            frame.texture:SetHeight(stagedBarHeight)
-            frame.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize, "OUTLINE")
             ReloadOpacity()
         end)
 
@@ -517,9 +474,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 greenSlider:SetValue(stagedColor.g)
                 blueSlider:SetValue(stagedColor.b)
                 opacitySlider:SetValue(stagedBarOpacity)
-                widthSlider:SetValue(stagedBarWidth)
-                heightSlider:SetValue(stagedBarHeight)
-                fontSizeSlider:SetValue(stagedFontSize)
+                scaleSlider:SetValue(stagedScale)
 
                 -- Show settings and show bar fully loaded and paused
                 ShowSwingTimerSettings()
