@@ -1,23 +1,24 @@
-
 local addonName = "SwingTimer"
-
--- Default settings
-local defaults = {
-    color = { r = 1, g = 0.5, b = 0 },
-    position = { x = -107.5556945800781, y = -0.4321538805961609 },
-    opacity = 0.8,
-    barHeight = 151,
-    fontSize = 10,
-    iconHeight = 24,
-    iconWidth = 24,
-    scale = 1.2,
-}
 
 -- Wait for the addon to be fully loaded
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == addonName then
+        
+        local _, class = UnitClass("player")
+
+        -- Default settings
+        local defaults = {
+            color = RAID_CLASS_COLORS[class],
+            position = { x = -107.5556945800781, y = -0.4321538805961609 },
+            opacity = 0.8,
+            barHeight = 151,
+            fontSize = 10,
+            iconHeight = 24,
+            iconWidth = 24,
+            scale = 1.2,
+        }
 
         print(addonName,"was successfully loaded.")
 
@@ -30,14 +31,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             
             local settingsData = SwingTimerSettings or {}
             SwingTimerSettings = settingsData
-            settingsData.color = settingsData.color or {}
             settingsData.position = settingsData.position or {}
-
-            for k, v in pairs(defaults.color) do
-                if settingsData.color[k] == nil then
-                    settingsData.color[k] = v
-                end
-            end
 
             for k, v in pairs(defaults.position) do
                 if settingsData.position[k] == nil then
@@ -45,12 +39,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 end
             end
 
-            -- Staged settings (live sliders)
-            local stagedColor = {
-                r = settingsData.color.r,
-                g = settingsData.color.g,
-                b = settingsData.color.b
-            }
             local stagedOpacity = settingsData.opacity or defaults.opacity
             local stagedBarHeight = defaults.barHeight
             local stagedFontSize = defaults.fontSize
@@ -127,7 +115,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Texture for filling swing bar
             mainHandSwingBar.texture = mainHandSwingBar:CreateTexture(nil, "BACKGROUND")
-            mainHandSwingBar.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b)
+            mainHandSwingBar.texture:SetColorTexture(defaults.color.r, defaults.color.g, defaults.color.b)
             mainHandSwingBar.texture:SetPoint("BOTTOM", mainHandSwingBar, "BOTTOM", -2, 1)
             mainHandSwingBar.texture:SetPoint("LEFT", mainHandSwingBar, "LEFT", 2, -2)
             mainHandSwingBar.texture:SetPoint("RIGHT", mainHandSwingBar, "RIGHT", -2, 2)
@@ -183,7 +171,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 paused = false
                 mainHandSwingBar:SetSize(stagedIconWidth * stagedScale, stagedBarHeight * stagedScale)
                 mainHandSwingBar.texture:SetHeight(stagedBarHeight*stagedScale)
-                mainHandSwingBar.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b)
+                mainHandSwingBar.texture:SetColorTexture(defaults.color.r, defaults.color.g, defaults.color.b)
                 mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
                 mainHandSwingBar:Show()
                 resourceBar:Show()
@@ -292,26 +280,29 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end)
 
             local function ShowTemporaryDebuffs()
+                debuffBar.icons = {}
                 for i = 1, 6 do
                     local icon = debuffBar.icons[i]
 
-                    icon = CreateFrame("Frame", nil, debuffBar)
-                    icon:SetSize(stagedIconWidth * stagedScale, stagedIconHeight * stagedScale)
-                    icon.texture = icon:CreateTexture(nil, "ARTWORK")
-                    icon.texture:SetAllPoints()
-                    icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                    icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
-                    icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                    if not icon then
+                        icon = CreateFrame("Frame", nil, debuffBar)
+                        icon:SetSize(stagedIconWidth * stagedScale, stagedIconHeight * stagedScale)
+                        icon.texture = icon:CreateTexture(nil, "ARTWORK")
+                        icon.texture:SetAllPoints()
+                        icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
+                        icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
 
-                        -- Stack count text
-                    local stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                    stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0)
-                    stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
-                    stackText:SetTextColor(1, 1, 1) -- white text
-                    icon.stackText = stackText
-                    icon.stackText:SetText("0")
+                            -- Stack count text
+                        local stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+                        stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0)
+                        stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                        stackText:SetTextColor(1, 1, 1) -- white text
+                        icon.stackText = stackText
+                        icon.stackText:SetText("0")
 
-                    debuffBar.icons[i] = icon
+                        debuffBar.icons[i] = icon
+                    end
 
                     if not i == 6 then
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + 0)))    
@@ -573,7 +564,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end
 
             settings = CreateFrame("Frame", "SwingTimerSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
-            settings:SetSize(300, 280)
+            settings:SetSize(300, 195)
             settings:SetPoint("CENTER")
             settings:SetMovable(true)
             settings:EnableMouse(true)
@@ -587,41 +578,21 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             settings.title:SetPoint("TOP", settings, "TOP", 0, -5)
             settings.title:SetText("Swing Timer Settings")
 
-            -- Color sliders factory
-            local function CreateColorSlider(name, label, yOffset, colorKey)
-                local slider = CreateFrame("Slider", name, settings, "OptionsSliderTemplate")
-                slider:SetWidth(220)
-                slider:SetMinMaxValues(0, 1)
-                slider:SetValueStep(0.01)
-                slider:SetObeyStepOnDrag(true)
-                slider:SetPoint("TOP", settings, "TOP", 0, yOffset)
-                _G[slider:GetName() .. "Low"]:SetText("0")
-                _G[slider:GetName() .. "High"]:SetText("1")
-                _G[slider:GetName() .. "Text"]:SetText(label)
-
-                slider:SetValue(stagedColor[colorKey])
-
-                slider:SetScript("OnValueChanged", function(self, value)
-                    settingsTemporaryValues.color[colorKey] = value
-                    mainHandSwingBar.texture:SetColorTexture(settingsTemporaryValues.color.r, settingsTemporaryValues.color.g, settingsTemporaryValues.color.b)
-                end)
-
-                return slider
-            end
-
-            local redSlider = CreateColorSlider("SwingTimerRedSlider", "Red", -50, "r")
-            local greenSlider = CreateColorSlider("SwingTimerGreenSlider", "Green", -80, "g")
-            local blueSlider = CreateColorSlider("SwingTimerBlueSlider", "Blue", -110, "b")
-
             -- Bar Opacity Slider
             local opacitySlider = CreateFrame("Slider", "SwingTimerBarOpacitySlider", settings, "OptionsSliderTemplate")
-            opacitySlider:SetWidth(220)
+            opacitySlider:SetWidth(250)
             opacitySlider:SetMinMaxValues(0.5, 1)
             opacitySlider:SetValueStep(0.01)
             opacitySlider:SetObeyStepOnDrag(true)
-            opacitySlider:SetPoint("TOP", settings, "TOP", 0, -140)
+            opacitySlider:SetPoint("BOTTOM", settings, "BOTTOM", 0, 130)
+            _G[opacitySlider:GetName() .. "Low"]:ClearAllPoints()
+            _G[opacitySlider:GetName() .. "Low"]:SetPoint("BOTTOMLEFT", opacitySlider, "TOP", -(opacitySlider:GetWidth()/2)+5, -30)
             _G[opacitySlider:GetName() .. "Low"]:SetText("50%")
+            
+            _G[opacitySlider:GetName() .. "High"]:ClearAllPoints()
+            _G[opacitySlider:GetName() .. "High"]:SetPoint("BOTTOMRIGHT", opacitySlider, "TOP", (opacitySlider:GetWidth()/2), -30)
             _G[opacitySlider:GetName() .. "High"]:SetText("100%")
+            
             _G[opacitySlider:GetName() .. "Text"]:SetText("Opacity")
 
             opacitySlider:SetValue(stagedOpacity)
@@ -633,13 +604,20 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Scale Slider
             local scaleSlider = CreateFrame("Slider", "SwingTimerScaleSlider", settings, "OptionsSliderTemplate")
-            scaleSlider:SetWidth(220)
-            scaleSlider:SetMinMaxValues(0.5, 2)
+            scaleSlider:SetWidth(250)
+            scaleSlider:SetMinMaxValues(0.5, 2.0)
             scaleSlider:SetValueStep(0.1)
             scaleSlider:SetObeyStepOnDrag(true)
-            scaleSlider:SetPoint("TOP", settings, "TOP", 0, -170)
+            scaleSlider:SetPoint("BOTTOM", settings, "BOTTOM", 0, 90)
+            
+            _G[scaleSlider:GetName() .. "Low"]:ClearAllPoints()
+            _G[scaleSlider:GetName() .. "Low"]:SetPoint("BOTTOMLEFT", scaleSlider, "TOP", -(scaleSlider:GetWidth()/2)+5, -30)
             _G[scaleSlider:GetName() .. "Low"]:SetText("0.5")
-            _G[scaleSlider:GetName() .. "High"]:SetText("2")
+            
+            _G[scaleSlider:GetName() .. "High"]:ClearAllPoints()
+            _G[scaleSlider:GetName() .. "High"]:SetPoint("BOTTOMRIGHT", scaleSlider, "TOP", (scaleSlider:GetWidth()/2)-5, -30)
+            _G[scaleSlider:GetName() .. "High"]:SetText("2.0")
+            
             _G[scaleSlider:GetName() .. "Text"]:SetText("Scale")
 
             scaleSlider:SetValue(stagedScale)
@@ -707,9 +685,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             resetBtn:SetScript("OnClick", function()
 
-                redSlider:SetValue(settingsSessionValues.color.r)
-                greenSlider:SetValue(settingsSessionValues.color.g)
-                blueSlider:SetValue(settingsSessionValues.color.b)
                 opacitySlider:SetValue(settingsSessionValues.opacity)
                 scaleSlider:SetValue(settingsSessionValues.scale)
 
@@ -726,15 +701,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             defaultBtn:SetScript("OnClick", function()
 
                 -- Reset staged to defaults
-                settingsTemporaryValues.color.r = defaults.color.r
-                settingsTemporaryValues.color.g = defaults.color.g
-                settingsTemporaryValues.color.b = defaults.color.b
                 settingsTemporaryValues.opacity = defaults.opacity
                 settingsTemporaryValues.scale = defaults.scale
 
-                redSlider:SetValue(settingsTemporaryValues.color.r)
-                greenSlider:SetValue(settingsTemporaryValues.color.g)
-                blueSlider:SetValue(settingsTemporaryValues.color.b)
                 opacitySlider:SetValue(settingsTemporaryValues.opacity)
                 scaleSlider:SetValue(settingsTemporaryValues.scale)
 
@@ -750,26 +719,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             applyBtn:SetScript("OnClick", function()
 
-                settingsData.color.r = settingsTemporaryValues.color.r
-                settingsData.color.g = settingsTemporaryValues.color.g
-                settingsData.color.b = settingsTemporaryValues.color.b
                 settingsData.opacity = settingsTemporaryValues.opacity
                 settingsData.scale = settingsTemporaryValues.scale
 
-                stagedColor.r = settingsTemporaryValues.color.r
-                stagedColor.g = settingsTemporaryValues.color.g
-                stagedColor.b = settingsTemporaryValues.color.b
                 stagedOpacity = settingsTemporaryValues.opacity
                 stagedScale = settingsTemporaryValues.scale
 
-                settingsSessionValues.color.r = settingsTemporaryValues.color.r
-                settingsSessionValues.color.g = settingsTemporaryValues.color.g
-                settingsSessionValues.color.b = settingsTemporaryValues.color.b
                 settingsSessionValues.opacity = settingsTemporaryValues.opacity
                 settingsSessionValues.scale = settingsTemporaryValues.scale
-
-                -- Apply settings
-                mainHandSwingBar.texture:SetColorTexture(settingsTemporaryValues.color.r, settingsTemporaryValues.color.g, settingsTemporaryValues.color.b)
 
                 -- Save position
                 local point, relativeTo, relativePoint, xOfs, yOfs = mainHandSwingBar:GetPoint()
@@ -806,29 +763,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     -- Set temporary values for opened season
 
                     settingsTemporaryValues = {
-                        color={
-                            r = stagedColor.r,
-                            g = stagedColor.g,
-                            b = stagedColor.b
-                        },
                         opacity = stagedOpacity,
                         scale = stagedScale
                     }
 
                     settingsSessionValues = {
-                        color={
-                            r = stagedColor.r,
-                            g = stagedColor.g,
-                            b = stagedColor.b
-                        },
                         opacity = stagedOpacity,
                         scale = stagedScale
                     }
 
                     -- Update sliders to staged values before showing
-                    redSlider:SetValue(stagedColor.r)
-                    greenSlider:SetValue(stagedColor.g)
-                    blueSlider:SetValue(stagedColor.b)
                     opacitySlider:SetValue(stagedOpacity)
                     scaleSlider:SetValue(stagedScale)
                     -- Show settings and show bar fully loaded and paused
