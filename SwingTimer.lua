@@ -485,6 +485,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                             if spellName == "Throw" then return end
 
                             if destGUID == UnitGUID("target") then
+                                if UnitAffectingCombat("player") then return end
                                 HideBar()
                                 queuedSpellName = nil
                                 queuedSpellTexture = nil
@@ -528,11 +529,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         isQueuedSpellActive = false
                     elseif UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsDeadOrGhost("target") then
                         -- New hostile target — reset timer
-                        HideBar()
-                        local speed = UnitAttackSpeed("player")
-                        if speed then
-                            StartSwingTimer(speed)
-                        end
+                        maxTime=0
+                        --HideBar()
                     end
                     UpdateDebuffBar()
                 end
