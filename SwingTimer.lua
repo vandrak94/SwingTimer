@@ -1,8 +1,6 @@
 
 local addonName = "SwingTimer"
 
-print(addonName)
-
 -- Default settings
 local defaults = {
     color = { r = 1, g = 0.5, b = 0 },
@@ -69,7 +67,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Power variables (Rage, Mana, Energy)
             local powerType = UnitPowerType("player") -- returns 0 for mana, 1 for rage, 3 for energy
-            --print("Power type", powerType)
             local currentPower = UnitPower("player", powerType)
             local maxPower = UnitPowerMax("player", powerType)
 
@@ -97,7 +94,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 local name = GetSpellInfo(id)
                 if name then
                     swingReplacingSpells[name] = true
-                    --print("Registered swing-replacing spell:", name)
                 end
             end
             
@@ -112,8 +108,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
         -- === SWING BAR ===
             mainHandSwingBar = CreateFrame("Frame", "SwingTimerFrame", UIParent, "BackdropTemplate")
-            mainHandSwingBar:SetSize((stagedIconWidth * stagedScale), (stagedIconHeight*stagedScale))
-            mainHandSwingBar:SetPoint("CENTER", UIParent, "CENTER", settingsData.position.x, settingsData.position.y)
             mainHandSwingBar:SetMovable(true)
             mainHandSwingBar:EnableMouse(true)
             mainHandSwingBar:RegisterForDrag("LeftButton")
@@ -121,6 +115,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             mainHandSwingBar:SetScript("OnDragStop", function(self)
                 self:StopMovingOrSizing()
             end)
+            mainHandSwingBar:SetSize((stagedIconWidth * stagedScale), (stagedBarHeight*stagedScale))
+            mainHandSwingBar:SetPoint("CENTER", UIParent, "CENTER", settingsData.position.x, settingsData.position.y)
+            --mainHandSwingBar:Show()
             mainHandSwingBar:Hide()
 
             -- Backdrop for visibility
@@ -131,10 +128,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             -- Texture for filling swing bar
             mainHandSwingBar.texture = mainHandSwingBar:CreateTexture(nil, "BACKGROUND")
             mainHandSwingBar.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b)
-            mainHandSwingBar.texture:SetPoint("BOTTOM", mainHandSwingBar, "BOTTOM", -2, 2)
+            mainHandSwingBar.texture:SetPoint("BOTTOM", mainHandSwingBar, "BOTTOM", -2, 1)
             mainHandSwingBar.texture:SetPoint("LEFT", mainHandSwingBar, "LEFT", 2, -2)
             mainHandSwingBar.texture:SetPoint("RIGHT", mainHandSwingBar, "RIGHT", -2, 2)
-            mainHandSwingBar.texture:SetHeight(stagedBarHeight*stagedScale)
+            mainHandSwingBar.texture:SetHeight(0)
 
             -- Icon of casted spell above the bar
             mainHandSwingBar.icon = mainHandSwingBar:CreateTexture(nil, "ARTWORK")
@@ -156,8 +153,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             mainHandSwingBar.border:SetBackdrop({
                 edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                edgeSize = 10 * stagedScale,
-                insets = { left = 20, right = 2, top = 20, bottom = 2 }
+                edgeSize = 10 * stagedScale
             })
             mainHandSwingBar.border:SetBackdropBorderColor(1, 1, 1)
 
@@ -168,7 +164,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     if not UnitAffectingCombat("player") then
                         self:Hide()
                     else
-                        mainHandSwingBar.texture:SetHeight(stagedBarHeight * stagedScale)
+                        mainHandSwingBar.texture:SetHeight(0)
                         mainHandSwingBar.text:SetText(string.format("%.2f", UnitAttackSpeed("player")))
                     end
                 else
@@ -212,7 +208,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local function UpdateDebuffBar()
                 if paused then return end
                 if not UnitExists("target") or not UnitCanAttack("player", "target") then
-                    --print("Hiding icons...")
                     for _, icon in ipairs(debuffBar.icons) do
                         icon:Hide()
                     end
@@ -229,6 +224,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                             table.insert(debuffs, {
                                 name = name,
                                 icon = iconTexture,
+                                count = count,
                                 duration = duration,
                                 expirationTime = expirationTime,
                                 remaining = remaining,
@@ -255,11 +251,32 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
                         icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
                         icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
+                        
+                        -- Stack count text
+                        local stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+                        stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0) -- move slightly left
+                        stackText:SetTextColor(1, 1, 1) -- white text
+                        stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                        icon.stackText = stackText
+
+                        if data.count and data.count > 1 then
+                            icon.stackText:SetText(data.count)
+                        else
+                            icon.stackText:SetText("")
+                        end
+
                         debuffBar.icons[i] = icon
                     end
 
                     icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight*stagedScale) + 2)))
                     icon.texture:SetTexture(data.icon)
+
+                    if data.count and data.count > 0 then
+                        icon.stackText:SetText(data.count)
+                    else
+                        icon.stackText:SetText("")
+                    end
+
                     icon.text:SetText(string.format("%.1f", data.remaining))
                     icon:Show()
                 end
@@ -275,21 +292,26 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end)
 
             local function ShowTemporaryDebuffs()
-                --print("Show temp debuffs")
                 for i = 1, 6 do
                     local icon = debuffBar.icons[i]
 
-                    if not icon then
-                        icon = CreateFrame("Frame", nil, debuffBar)
-                        icon:SetSize(stagedIconWidth * stagedScale, stagedIconHeight * stagedScale)
-                        icon.texture = icon:CreateTexture(nil, "ARTWORK")
-                        icon.texture:SetAllPoints()
-                        icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
-                        icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
-                        debuffBar.icons[i] = icon
-                        --print("Create icon", i)
-                    end
+                    icon = CreateFrame("Frame", nil, debuffBar)
+                    icon:SetSize(stagedIconWidth * stagedScale, stagedIconHeight * stagedScale)
+                    icon.texture = icon:CreateTexture(nil, "ARTWORK")
+                    icon.texture:SetAllPoints()
+                    icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
+                    icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+
+                        -- Stack count text
+                    local stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+                    stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0)
+                    stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                    stackText:SetTextColor(1, 1, 1) -- white text
+                    icon.stackText = stackText
+                    icon.stackText:SetText("0")
+
+                    debuffBar.icons[i] = icon
 
                     if not i == 6 then
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + 0)))    
@@ -313,15 +335,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             resourceBar:SetAlpha(stagedOpacity)
             resourceBar:SetOrientation("HORIZONTAL")
 
-            
             if powerType == 0 then
-                print("Mana")
                 resourceBar:SetStatusBarColor(0, 0, 1) -- blue
             elseif powerType == 1 then
-                print("Rage")
                 resourceBar:SetStatusBarColor(1, 0, 0) -- red
             elseif powerType == 3 then
-                print("Energy")
                 resourceBar:SetStatusBarColor(1, 1, 0) -- yellow
             end
 
@@ -394,8 +412,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     local unit, target, castGUID, spellID = ...
                     if unit == "player" then
                         local spellName = GetSpellInfo(spellID)
+
+                        if spellName == "Throw" then return end
+
                         if swingReplacingSpells[spellName] then
-                            --print("Spell SENT (queued):", spellName)
                             queuedSpellName = spellName
                             queuedSpellTexture = select(3, GetSpellInfo(spellID))
                             mainHandSwingBar.icon:SetTexture(queuedSpellTexture)
@@ -411,8 +431,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     local unit, castGUID, spellID = ...
                     if unit == "player" then
                         local spellName = GetSpellInfo(spellID)
+
+                        if spellName == "Throw" then return end
+
                         if swingReplacingSpells[spellName] then
-                            --print("Swing-replacing spell cast succeeded:", spellName)
                             queuedSpellName = spellName
                             queuedSpellTexture = select(3, GetSpellInfo(spellID))
                             mainHandSwingBar.icon:SetTexture(queuedSpellTexture)
@@ -426,10 +448,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     local timestamp, subevent, _, sourceGUID, _, _, _, _, destName, _, _, spellID, spellName = CombatLogGetCurrentEventInfo()
 
                     if sourceGUID == UnitGUID("player") then
-                        --print("Combat event:", subevent, spellName or "")
 
                         if subevent == "SWING_DAMAGE" or subevent == "SWING_MISSED" then
-                            --print("Auto attack swing fired")
+
+                            if not UnitExists("target") or not UnitCanAttack("player", "target") then return end
+
+                            local spellName = GetSpellInfo(spellID)
+                            if spellName == "Throw" then return end
+
                             queuedSpellName = nil
                             queuedSpellTexture = nil
                             mainHandSwingBar.icon:Hide()
@@ -437,13 +463,17 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
                             local speed = UnitAttackSpeed("player")
                             if speed then
-                                --print("Starting swing timer with speed:", speed)
                                 StartSwingTimer(speed)
                             end
 
                         elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_MISSED" then
+
+                            if not UnitExists("target") or not UnitCanAttack("player", "target") then return end
+
+                            local spellName = GetSpellInfo(spellID)
+                            if spellName == "Throw" then return end
+
                             if swingReplacingSpells[spellName] then
-                                --print("Swing-replacing spell fired:", spellName)
                                 queuedSpellName = nil
                                 queuedSpellTexture = nil
                                 mainHandSwingBar.icon:Hide()
@@ -451,18 +481,19 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
                                 local speed = UnitAttackSpeed("player")
                                 if speed then
-                                    --print("Starting swing timer with spell:", speed)
                                     StartSwingTimer(speed)
                                 end
                             else
                                 -- Do nothing: a non-swing-replacing spell like Rend was used
-                                --print("Non-swing-replacing spell used:", spellName)
                             end
                         
                         elseif subevent == "PARTY_KILL" then
                             local destGUID = select(8, CombatLogGetCurrentEventInfo())
+
+                            local spellName = GetSpellInfo(spellID)
+                            if spellName == "Throw" then return end
+
                             if destGUID == UnitGUID("target") then
-                                --print("Your target has died. Hiding swing timer.")
                                 HideBar()
                                 queuedSpellName = nil
                                 queuedSpellTexture = nil
@@ -475,12 +506,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 
                 -- Player is out of combat
                 elseif event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_LOGIN" then
-                    --print("Resetting on event:", event)
+                    maxTime=0
                     mainHandSwingBar:Hide()
                     mainHandSwingBar.icon:Hide()
                     queuedSpellName = nil
                     queuedSpellTexture = nil
                     isQueuedSpellActive = false
+                    UpdateResourceBar()
                     UpdateDebuffBar()
 
                 -- Player is in combat    
@@ -498,7 +530,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         -- Player not in combat, ignore target changes
                         return
                     elseif not UnitExists("target") then
-                        --print("Target cleared. Hiding swing timer.")
                         HideBar()
                         queuedSpellName = nil
                         queuedSpellTexture = nil
@@ -509,7 +540,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         HideBar()
                         local speed = UnitAttackSpeed("player")
                         if speed then
-                            --print("Starting swing timer with speed:", speed)
                             StartSwingTimer(speed)
                         end
                     end
@@ -620,22 +650,22 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
                 settingsTemporaryValues.scale = value
                 
-                mainHandSwingBar:SetSize((stagedIconWidth*settingsTemporaryValues.scale), (stagedBarHeight*settingsTemporaryValues.scale))
-                mainHandSwingBar.texture:SetHeight((stagedBarHeight/2)*settingsTemporaryValues.scale)
-                mainHandSwingBar.texture:SetWidth((stagedIconWidth/2)*settingsTemporaryValues.scale)
+                mainHandSwingBar:SetSize((stagedIconWidth * settingsTemporaryValues.scale), (stagedBarHeight * settingsTemporaryValues.scale))
+                mainHandSwingBar.texture:SetHeight((stagedBarHeight / 2) * settingsTemporaryValues.scale)
+                mainHandSwingBar.texture:SetWidth((stagedIconWidth / 2) * settingsTemporaryValues.scale)
 
                 mainHandSwingBar.border:SetPoint("TOPLEFT", mainHandSwingBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
                 mainHandSwingBar.border:SetPoint("BOTTOMRIGHT", mainHandSwingBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
                 mainHandSwingBar.border:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 * settingsTemporaryValues.scale})
                 
-                mainHandSwingBar.icon:SetSize(stagedIconWidth*settingsTemporaryValues.scale, stagedIconHeight*settingsTemporaryValues.scale)
-                mainHandSwingBar.icon:SetPoint("BOTTOM", mainHandSwingBar, "TOP", 0, stagedSpace*settingsTemporaryValues.scale)
+                mainHandSwingBar.icon:SetSize(stagedIconWidth * settingsTemporaryValues.scale, stagedIconHeight*settingsTemporaryValues.scale)
+                mainHandSwingBar.icon:SetPoint("BOTTOM", mainHandSwingBar, "TOP", 0, stagedSpace * settingsTemporaryValues.scale)
 
                 mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*settingsTemporaryValues.scale, "OUTLINE")
-                mainHandSwingBar.text:SetPoint("TOP", mainHandSwingBar, "BOTTOM", 0, -stagedSpace*settingsTemporaryValues.scale)
+                mainHandSwingBar.text:SetPoint("TOP", mainHandSwingBar, "BOTTOM", 0, -stagedSpace * settingsTemporaryValues.scale)
 
                 debuffBar:SetSize(stagedIconWidth * settingsTemporaryValues.scale, stagedBarHeight * settingsTemporaryValues.scale)
-                debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -stagedSpace*settingsTemporaryValues.scale, 0)
+                debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -stagedSpace * settingsTemporaryValues.scale, 0)
                 
                 for i=1, 6 do
                     local icon = debuffBar.icons[i]
@@ -646,12 +676,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     if not i == 6 then
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * settingsTemporaryValues.scale) + 0)))    
                     else
-                        icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * settingsTemporaryValues.scale) + (1.5*settingsTemporaryValues.scale))))
+                        icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * settingsTemporaryValues.scale) + (1.5 * settingsTemporaryValues.scale))))
                     end
+
+                    icon.stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * settingsTemporaryValues.scale / 2), 0)
+                    icon.stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * settingsTemporaryValues.scale, "OUTLINE")
+
                     debuffBar.icons[i] = icon
                 end
 
-                resourceBar:SetSize((stagedIconWidth * 3 + stagedSpace * 2) * settingsTemporaryValues.scale, stagedIconHeight/2 * settingsTemporaryValues.scale)
+                resourceBar:SetSize((stagedIconWidth * 3 + stagedSpace * 2) * settingsTemporaryValues.scale, stagedIconHeight / 2 * settingsTemporaryValues.scale)
                 resourceBar:SetPoint("TOP", mainHandSwingBar.text, "BOTTOM", 0, -stagedSpace * settingsTemporaryValues.scale)
 
                 resourceBar.border:SetPoint("TOPLEFT", resourceBar, "TOPLEFT", -1 * settingsTemporaryValues.scale , 1 * settingsTemporaryValues.scale)
