@@ -345,13 +345,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             resourceBar.text:ClearAllPoints()
             resourceBar.text:SetPoint("TOP", resourceBar, "BOTTOM", 0, -stagedSpace*stagedScale)
             resourceBar.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
-            resourceBar.text:SetText(string.format("%d", currentPower))
+            resourceBar.text:SetText(string.format("%d / %d", currentPower, maxPower))
             
             -- Update function
             local function UpdateResourceBar()
-                local current = UnitPower("player", powerType)
-                resourceBar.text:SetText(string.format("%d", current))
-                resourceBar:SetValue(current)
+                currentPower = UnitPower("player", powerType)
+                maxPower = UnitPowerMax("player", powerType)
+                resourceBar.text:SetText(string.format("%d / %d", currentPower, maxPower))
+                resourceBar:SetValue(currentPower)
             end
 
             -- Event handler
@@ -359,6 +360,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 if paused then return end
                 if unit ~= "player" then return end
                 powerType = UnitPowerType("player")
+                currentPower = UnitPower("player", powerType)
                 maxPower = UnitPowerMax("player", powerType)
                 resourceBar:SetMinMaxValues(0, maxPower)
                 UpdateResourceBar()
@@ -528,7 +530,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandSwingBar.icon:Show()
                 mainHandSwingBar:Show()
                 resourceBar:SetMinMaxValues(0,100)
-                resourceBar.text:SetText(string.format("%d", 0))
+                resourceBar.text:SetText(string.format("%d / %d", 0, 100))
                 resourceBar:SetValue(50)
                 resourceBar:Show()
                 ShowTemporaryDebuffs()
@@ -799,6 +801,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     ShowSwingTimerSettings()
                 end
             end
+
+            -- Add settings to UISpecialFrames to be closed on ESC press
+            tinsert(UISpecialFrames, settings:GetName())
 
         -- === MINIMAP ICON ===
             minimapIcon = CreateFrame("Button", "SwingTimerMinimapButton", Minimap)
