@@ -8,9 +8,8 @@ local defaults = {
     color = { r = 1, g = 0.5, b = 0 },
     position = { x = -107.5556945800781, y = -0.4321538805961609 },
     opacity = 0.8,
-    barWidth = 22,
     barHeight = 151,
-    fontSize = 9,
+    fontSize = 10,
     iconHeight = 24,
     iconWidth = 24,
     scale = 1.2,
@@ -55,7 +54,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 b = settingsData.color.b
             }
             local stagedOpacity = settingsData.opacity or defaults.opacity
-            local stagedBarWidth = defaults.barWidth
             local stagedBarHeight = defaults.barHeight
             local stagedFontSize = defaults.fontSize
             local stagedIconHeight = defaults.iconHeight
@@ -71,6 +69,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Power variables (Rage, Mana, Energy)
             local powerType = UnitPowerType("player") -- returns 0 for mana, 1 for rage, 3 for energy
+            --print("Power type", powerType)
             local currentPower = UnitPower("player", powerType)
             local maxPower = UnitPowerMax("player", powerType)
 
@@ -113,7 +112,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
         -- === SWING BAR ===
             mainHandSwingBar = CreateFrame("Frame", "SwingTimerFrame", UIParent, "BackdropTemplate")
-            mainHandSwingBar:SetSize((stagedBarWidth*stagedScale), (stagedBarHeight*stagedScale))
+            mainHandSwingBar:SetSize((stagedIconWidth * stagedScale), (stagedIconHeight*stagedScale))
             mainHandSwingBar:SetPoint("CENTER", UIParent, "CENTER", settingsData.position.x, settingsData.position.y)
             mainHandSwingBar:SetMovable(true)
             mainHandSwingBar:EnableMouse(true)
@@ -132,9 +131,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             -- Texture for filling swing bar
             mainHandSwingBar.texture = mainHandSwingBar:CreateTexture(nil, "BACKGROUND")
             mainHandSwingBar.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b)
-            mainHandSwingBar.texture:SetPoint("BOTTOM", mainHandSwingBar, "BOTTOM")
-            mainHandSwingBar.texture:SetPoint("LEFT", mainHandSwingBar, "LEFT")
-            mainHandSwingBar.texture:SetPoint("RIGHT", mainHandSwingBar, "RIGHT")
+            mainHandSwingBar.texture:SetPoint("BOTTOM", mainHandSwingBar, "BOTTOM", -2, 2)
+            mainHandSwingBar.texture:SetPoint("LEFT", mainHandSwingBar, "LEFT", 2, -2)
+            mainHandSwingBar.texture:SetPoint("RIGHT", mainHandSwingBar, "RIGHT", -2, 2)
             mainHandSwingBar.texture:SetHeight(stagedBarHeight*stagedScale)
 
             -- Icon of casted spell above the bar
@@ -152,13 +151,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Create a mainHandSwingBar to act as border container
             mainHandSwingBar.border = CreateFrame("Frame", nil, mainHandSwingBar, "BackdropTemplate")
-            mainHandSwingBar.border:SetPoint("TOPLEFT", mainHandSwingBar, "TOPLEFT", -2, 2)    -- slightly bigger than bar
-            mainHandSwingBar.border:SetPoint("BOTTOMRIGHT", mainHandSwingBar, "BOTTOMRIGHT", 2, -2)
+            mainHandSwingBar.border:SetPoint("TOPLEFT", mainHandSwingBar, "TOPLEFT", -1 * stagedScale, 1 * stagedScale)
+            mainHandSwingBar.border:SetPoint("BOTTOMRIGHT", mainHandSwingBar, "BOTTOMRIGHT", 1 * stagedScale, -1 * stagedScale)
 
             mainHandSwingBar.border:SetBackdrop({
                 edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                edgeSize = 10,
-                insets = { left = 2, right = 2, top = 2, bottom = 2 },
+                edgeSize = 10 * stagedScale,
+                insets = { left = 20, right = 2, top = 20, bottom = 2 }
             })
             mainHandSwingBar.border:SetBackdropBorderColor(1, 1, 1)
 
@@ -169,7 +168,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     if not UnitAffectingCombat("player") then
                         self:Hide()
                     else
-                        mainHandSwingBar.texture:SetHeight(stagedBarHeight*stagedScale)
+                        mainHandSwingBar.texture:SetHeight(stagedBarHeight * stagedScale)
                         mainHandSwingBar.text:SetText(string.format("%.2f", UnitAttackSpeed("player")))
                     end
                 else
@@ -186,7 +185,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 maxTime = speed
                 elapsedTime = 0
                 paused = false
-                mainHandSwingBar:SetSize(stagedBarWidth*stagedScale, stagedBarHeight*stagedScale)
+                mainHandSwingBar:SetSize(stagedIconWidth * stagedScale, stagedBarHeight * stagedScale)
                 mainHandSwingBar.texture:SetHeight(stagedBarHeight*stagedScale)
                 mainHandSwingBar.texture:SetColorTexture(stagedColor.r, stagedColor.g, stagedColor.b)
                 mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
@@ -205,7 +204,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
         -- === DEBUFF BAR ===
             debuffBar = CreateFrame("Frame", "SwingTimerDebuffBar", mainHandSwingBar)
-            debuffBar:SetSize(stagedBarWidth * stagedScale, stagedBarHeight * stagedScale)
+            debuffBar:SetSize(stagedIconWidth * stagedScale, stagedBarHeight * stagedScale)
             debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -stagedSpace*stagedScale, 0) -- Left side of swing bar
             debuffBar:SetAlpha(stagedOpacity)
             debuffBar.icons = {}
@@ -254,7 +253,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.texture = icon:CreateTexture(nil, "ARTWORK")
                         icon.texture:SetAllPoints()
                         icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1*stagedScale)
+                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
                         icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
                         debuffBar.icons[i] = icon
                     end
@@ -286,8 +285,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.texture = icon:CreateTexture(nil, "ARTWORK")
                         icon.texture:SetAllPoints()
                         icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1*stagedScale)
-                        icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
+                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
+                        icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
                         debuffBar.icons[i] = icon
                         --print("Create icon", i)
                     end
@@ -295,7 +294,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     if not i == 6 then
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + 0)))    
                     else
-                        icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + (1.5*stagedScale))))
+                        icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + (1.5 * stagedScale))))
                     end
                     icon.texture:SetTexture(select(3, GetSpellInfo(772)))
                     icon.text:SetText(string.format("%.1f", 0))
@@ -306,20 +305,23 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- === RESOURCE BAR ===
 
             resourceBar = CreateFrame("StatusBar", nil, mainHandSwingBar)
-            resourceBar:SetSize((stagedBarWidth/2)*stagedScale, stagedBarHeight*stagedScale)
-            resourceBar:SetPoint("LEFT", mainHandSwingBar, "RIGHT", stagedSpace*stagedScale, 0) -- position next to swing bar
+            resourceBar:SetSize((stagedIconWidth * 3 + stagedSpace * 2) * stagedScale, stagedIconHeight/2 * stagedScale)
+            resourceBar:SetPoint("TOP", mainHandSwingBar.text, "BOTTOM", 0, -stagedSpace * stagedScale)
             resourceBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
             resourceBar:SetMinMaxValues(0, maxPower)
             resourceBar:SetValue(currentPower)
             resourceBar:SetAlpha(stagedOpacity)
-            resourceBar:SetOrientation("VERTICAL")
+            resourceBar:SetOrientation("HORIZONTAL")
 
             
             if powerType == 0 then
+                print("Mana")
                 resourceBar:SetStatusBarColor(0, 0, 1) -- blue
             elseif powerType == 1 then
+                print("Rage")
                 resourceBar:SetStatusBarColor(1, 0, 0) -- red
             elseif powerType == 3 then
+                print("Energy")
                 resourceBar:SetStatusBarColor(1, 1, 0) -- yellow
             end
 
@@ -330,17 +332,25 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Border
             resourceBar.border = CreateFrame("Frame", nil, resourceBar, BackdropTemplateMixin and "BackdropTemplate")
-            resourceBar.border:SetPoint("TOPLEFT", -2, 2)
-            resourceBar.border:SetPoint("BOTTOMRIGHT", 2, -2)
+            resourceBar.border:SetPoint("TOPLEFT", resourceBar, "TOPLEFT", -1 * stagedScale , 1 * stagedScale)
+            resourceBar.border:SetPoint("BOTTOMRIGHT", resourceBar, "BOTTOMRIGHT", 1 * stagedScale, -1 * stagedScale)
             resourceBar.border:SetBackdrop({
                 edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                edgeSize = 12,
+                edgeSize = 10 * stagedScale,
             })
             resourceBar.border:SetBackdropBorderColor(1, 1, 1) -- white border
+
+            -- Position text below the bar
+            resourceBar.text = mainHandSwingBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            resourceBar.text:ClearAllPoints()
+            resourceBar.text:SetPoint("TOP", resourceBar, "BOTTOM", 0, -stagedSpace*stagedScale)
+            resourceBar.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
+            resourceBar.text:SetText(string.format("%d", currentPower))
             
             -- Update function
             local function UpdateResourceBar()
                 local current = UnitPower("player", powerType)
+                resourceBar.text:SetText(string.format("%d", current))
                 resourceBar:SetValue(current)
             end
 
@@ -512,12 +522,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 maxTime = speed
                 elapsedTime = 0
                 paused = true
-                mainHandSwingBar:SetSize(stagedBarWidth*stagedScale, stagedBarHeight*stagedScale)
+                mainHandSwingBar:SetSize(stagedIconWidth*stagedScale, stagedBarHeight*stagedScale)
                 mainHandSwingBar.texture:SetHeight((stagedBarHeight/2)*stagedScale)
                 mainHandSwingBar.icon:SetTexture(select(3, GetSpellInfo(78)))
                 mainHandSwingBar.icon:Show()
                 mainHandSwingBar:Show()
                 resourceBar:SetMinMaxValues(0,100)
+                resourceBar.text:SetText(string.format("%d", 0))
                 resourceBar:SetValue(50)
                 resourceBar:Show()
                 ShowTemporaryDebuffs()
@@ -603,10 +614,17 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             scaleSlider:SetScript("OnValueChanged", function(self, value)
                 
+                -- Components scale change when slider value is changed 
+
                 settingsTemporaryValues.scale = value
                 
-                mainHandSwingBar:SetSize((stagedBarWidth*settingsTemporaryValues.scale), (stagedBarHeight*settingsTemporaryValues.scale))
+                mainHandSwingBar:SetSize((stagedIconWidth*settingsTemporaryValues.scale), (stagedBarHeight*settingsTemporaryValues.scale))
                 mainHandSwingBar.texture:SetHeight((stagedBarHeight/2)*settingsTemporaryValues.scale)
+                mainHandSwingBar.texture:SetWidth((stagedIconWidth/2)*settingsTemporaryValues.scale)
+
+                mainHandSwingBar.border:SetPoint("TOPLEFT", mainHandSwingBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
+                mainHandSwingBar.border:SetPoint("BOTTOMRIGHT", mainHandSwingBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
+                mainHandSwingBar.border:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 * settingsTemporaryValues.scale})
                 
                 mainHandSwingBar.icon:SetSize(stagedIconWidth*settingsTemporaryValues.scale, stagedIconHeight*settingsTemporaryValues.scale)
                 mainHandSwingBar.icon:SetPoint("BOTTOM", mainHandSwingBar, "TOP", 0, stagedSpace*settingsTemporaryValues.scale)
@@ -614,14 +632,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*settingsTemporaryValues.scale, "OUTLINE")
                 mainHandSwingBar.text:SetPoint("TOP", mainHandSwingBar, "BOTTOM", 0, -stagedSpace*settingsTemporaryValues.scale)
 
-                debuffBar:SetSize(stagedBarWidth * settingsTemporaryValues.scale, stagedBarHeight * settingsTemporaryValues.scale)
+                debuffBar:SetSize(stagedIconWidth * settingsTemporaryValues.scale, stagedBarHeight * settingsTemporaryValues.scale)
                 debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -stagedSpace*settingsTemporaryValues.scale, 0)
                 
                 for i=1, 6 do
                     local icon = debuffBar.icons[i]
                     icon:SetSize(stagedIconWidth * settingsTemporaryValues.scale, stagedIconHeight * settingsTemporaryValues.scale)
                     icon.texture:SetAllPoints()
-                    icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1*settingsTemporaryValues.scale)
+                    icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * settingsTemporaryValues.scale)
                     icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * settingsTemporaryValues.scale, "OUTLINE")
                     if not i == 6 then
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * settingsTemporaryValues.scale) + 0)))    
@@ -630,9 +648,17 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     end
                     debuffBar.icons[i] = icon
                 end
-                
-                resourceBar:SetSize((stagedBarWidth/2)*settingsTemporaryValues.scale, stagedBarHeight*settingsTemporaryValues.scale)
-                resourceBar:SetPoint("LEFT", mainHandSwingBar, "RIGHT", stagedSpace*settingsTemporaryValues.scale, 0)
+
+                resourceBar:SetSize((stagedIconWidth * 3 + stagedSpace * 2) * settingsTemporaryValues.scale, stagedIconHeight/2 * settingsTemporaryValues.scale)
+                resourceBar:SetPoint("TOP", mainHandSwingBar.text, "BOTTOM", 0, -stagedSpace * settingsTemporaryValues.scale)
+
+                resourceBar.border:SetPoint("TOPLEFT", resourceBar, "TOPLEFT", -1 * settingsTemporaryValues.scale , 1 * settingsTemporaryValues.scale)
+                resourceBar.border:SetPoint("BOTTOMRIGHT", resourceBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
+                resourceBar.border:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 * settingsTemporaryValues.scale})
+
+                resourceBar.text:SetPoint("TOP", resourceBar, "BOTTOM", 0, -stagedSpace * settingsTemporaryValues.scale)
+                resourceBar.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * settingsTemporaryValues.scale, "OUTLINE")
+
             end)
 
             -- Load saved values button
