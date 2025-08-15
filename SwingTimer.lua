@@ -70,20 +70,58 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Spell IDs by class
             local swingReplacingSpells = {}
-            local spellIDs = {}
-            local _, playerClass = UnitClass("player")
-            if playerClass == "WARRIOR" then
-                spellIDs = {78, 284, 285, 1608, 11564, 11565, 11566, 11567, 25286, 845, 7369, 11608, 11609, 20569, 1464} -- Heroic Strike, Cleave, Slam
-            elseif playerClass == "DRUID" then
-                spellIDs = {6807} -- Maul
+
+            -- Create hidden tooltip for scanning
+            local scanTip = CreateFrame("GameTooltip", "SwingScanTooltip", nil, "GameTooltipTemplate")
+            scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+
+            local function ScanSwingReplacingSpells()
+
+                wipe(swingReplacingSpells) -- clear table in case of reload
+
+                local keyword = "next melee" -- change if localized
+
+                local i = 1
+                while true do
+                    local spellName, spellSubName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
+                    if not spellName then break end -- no more spells in spellbook
+
+                    -- Load tooltip for this spell
+                    scanTip:ClearLines()
+                    scanTip:SetSpellBookItem(i, BOOKTYPE_SPELL)
+
+                    local found = false
+                    for lineIndex = 1, scanTip:NumLines() do
+                        local line = _G["SwingScanTooltipTextLeft" .. lineIndex]:GetText()
+                        if line and string.find(string.lower(line), keyword) then
+                            swingReplacingSpells[spellName] = true
+                            found = true
+                            break
+                        end
+                    end
+
+                    i = i + 1
+                end
+
+                --[[
+                print("Swing-replacing spells detected:")
+                for name in pairs(swingReplacingSpells) do
+                    print(" - " .. name)
+                end--]]
+
             end
 
-            for _, id in ipairs(spellIDs) do
-                local name = GetSpellInfo(id)
-                if name then
-                    swingReplacingSpells[name] = true
-                end
-            end
+            -- Run after player logs in (spellbook is ready)
+            local spellInspector = CreateFrame("Frame")
+            spellInspector:RegisterEvent("PLAYER_LOGIN")
+            spellInspector:RegisterEvent("LEARNED_SPELL_IN_TAB") -- new spell learned
+            spellInspector:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED") -- spec change (Retail)
+            spellInspector:RegisterEvent("PLAYER_TALENT_UPDATE") -- talents/forms may change spells
+            spellInspector:RegisterEvent("SPELLS_CHANGED") -- covers most spellbook updates
+            spellInspector:SetScript("OnEvent", function()
+                -- Delay slightly in case the spellbook hasn't fully updated yet
+                C_Timer.After(0.2, ScanSwingReplacingSpells)
+            end)
             
             -- Frames defined
 
