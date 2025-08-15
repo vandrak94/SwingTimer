@@ -17,7 +17,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             fontSize = 10,
             iconHeight = 24,
             iconWidth = 24,
-            scale = 1.2,
+            scale = 1.2
         }
 
         print(addonName,"was successfully loaded.")
@@ -46,7 +46,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local stagedIconWidth = defaults.iconWidth
             local stagedScale = settingsData.scale or defaults.scale
             local stagedSpace = 3
-
+            
             -- Spell que variables
             local queuedSpellName = nil
             local queuedSpellTexture = nil
@@ -132,7 +132,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local settings -- SETTINGS PANEL
             local minimapIcon -- MINIMAP ICON
 
-        -- === SWING BAR ===
+        -- === MAIN HAND SWING BAR ===
             mainHandSwingBar = CreateFrame("Frame", "SwingTimerFrame", UIParent, "BackdropTemplate")
             mainHandSwingBar:SetMovable(true)
             mainHandSwingBar:EnableMouse(true)
@@ -225,9 +225,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end
 
         -- === DEBUFF BAR ===
+
             debuffBar = CreateFrame("Frame", "SwingTimerDebuffBar", mainHandSwingBar)
             debuffBar:SetSize(stagedIconWidth * stagedScale, stagedBarHeight * stagedScale)
-            debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -stagedSpace*stagedScale, 0) -- Left side of swing bar
+            debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -stagedSpace * stagedScale, 0) -- Left side of swing bar
             debuffBar:SetAlpha(stagedOpacity)
             debuffBar.icons = {}
 
@@ -277,25 +278,20 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
                         icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
                         icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize*stagedScale, "OUTLINE")
-                        
-                        -- Stack count text
-                        local stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                        stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0) -- move slightly left
-                        stackText:SetTextColor(1, 1, 1) -- white text
-                        stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
-                        icon.stackText = stackText
-
-                        if data.count and data.count > 1 then
-                            icon.stackText:SetText(data.count)
-                        else
-                            icon.stackText:SetText("")
-                        end
-
+                        icon.stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                         debuffBar.icons[i] = icon
                     end
 
-                    icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight*stagedScale) + 2)))
-                    icon.texture:SetTexture(data.icon)
+                    if not i == 6 then
+                        icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + 0)))    
+                    else
+                        icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + (1.5 * stagedScale))))
+                    end
+
+                    -- Stack count text
+                    icon.stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0)
+                    icon.stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                    icon.stackText:SetTextColor(1, 1, 1) -- white text
 
                     if data.count and data.count > 0 then
                         icon.stackText:SetText(data.count)
@@ -303,6 +299,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.stackText:SetText("")
                     end
 
+                    -- Icon texture and duration
+                    icon.texture:SetTexture(data.icon)
                     icon.text:SetText(string.format("%.1f", data.remaining))
                     icon:Show()
                 end
@@ -318,7 +316,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end)
 
             local function ShowTemporaryDebuffs()
-                debuffBar.icons = {}
+
                 for i = 1, 6 do
                     local icon = debuffBar.icons[i]
 
@@ -330,15 +328,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
                         icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
                         icon.text:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
-
-                            -- Stack count text
-                        local stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                        stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0)
-                        stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
-                        stackText:SetTextColor(1, 1, 1) -- white text
-                        icon.stackText = stackText
-                        icon.stackText:SetText("0")
-
+                        icon.stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                         debuffBar.icons[i] = icon
                     end
 
@@ -347,6 +337,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     else
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((stagedIconHeight * stagedScale) + (1.5 * stagedScale))))
                     end
+
+                    -- Stack count text
+                    icon.stackText:SetPoint("RIGHT", icon, "LEFT", -(stagedFontSize * stagedScale / 2), 0)
+                    icon.stackText:SetFont("Fonts\\FRIZQT__.TTF", stagedFontSize * stagedScale, "OUTLINE")
+                    icon.stackText:SetTextColor(1, 1, 1) -- white text
+                    icon.stackText:SetText("0")
+
+                    -- Icon texture and duration
                     icon.texture:SetTexture(select(3, GetSpellInfo(772)))
                     icon.text:SetText(string.format("%.1f", 0))
                     icon:Show()
@@ -356,7 +354,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- === RESOURCE BAR ===
 
             resourceBar = CreateFrame("StatusBar", nil, mainHandSwingBar)
-            resourceBar:SetSize((stagedIconWidth * 3 + stagedSpace * 2) * stagedScale, stagedIconHeight/2 * stagedScale)
+            resourceBar:SetSize((stagedIconWidth * 3 + stagedSpace * 2) * stagedScale, stagedIconHeight / 2 * stagedScale)
             resourceBar:SetPoint("TOP", mainHandSwingBar.text, "BOTTOM", 0, -stagedSpace * stagedScale)
             resourceBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
             resourceBar:SetMinMaxValues(0, maxPower)
