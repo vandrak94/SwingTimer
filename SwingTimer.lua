@@ -54,51 +54,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local queuedSpellTexture = nil
             local isQueuedSpellActive = false
 
-            -- Offhand weapon detection
+            -- Off-hand weapon detection
             local offHandWeaponEquipped = false
-            local enableOffHandSwingBar = false
-
-            local function IsOffHandWeaponEquipped()
-                local offHandSlot = GetInventoryItemID("player", 17)
-
-                if not offHandSlot then
-                    print("Offhand slot is empty")
-                    offHandWeaponEquipped = false
-                    return
-                end
-
-                local itemName, _, _, _, _, itemType, itemSubType = GetItemInfo(offHandSlot)
-                offHandWeaponEquipped = (itemType == "Weapon")
-            end
-
-            local function GetOffHandType()
-
-                local itemName, _, _, _, _, itemType, itemSubType = GetItemInfo(offHandSlot)
-                return itemType, itemSubType, itemName
-            end
-
-             -- Run after player logs in (spellbook is ready)
-            local offHandInspector = CreateFrame("Frame")
-            offHandInspector:RegisterEvent("PLAYER_LOGIN")
-            offHandInspector:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-
-            offHandInspector:SetScript("OnEvent", function()
-                IsOffHandWeaponEquipped()
-                if offHandWeaponEquipped then
-                    enableOffHandSwingBar = true
-                else
-                    enableOffHandSwingBar = false
-                end
-            end)
 
             -- Power variables (Rage, Mana, Energy)
             local powerType = UnitPowerType("player") -- returns 0 for mana, 1 for rage, 3 for energy
             local currentPower = UnitPower("player", powerType)
             local maxPower = UnitPowerMax("player", powerType)
-
-            -- Swing variables
-            local mainHandMaxTime = 0
-            local elapsedTime = 0
             
             -- Pause variable
             local paused = false
@@ -160,7 +122,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 -- Delay slightly in case the spellbook hasn't fully updated yet
                 C_Timer.After(0.2, ScanSwingReplacingSpells)
             end)
-            
+
             -- Frames defined
 
             local mainHandSwingBar -- MAIN HAND SWING BAR
@@ -170,6 +132,51 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local events -- EVENT TRACKING
             local settings -- SETTINGS PANEL
             local minimapIcon -- MINIMAP ICON
+
+            -- Swing variables
+            local mainHandSpeed, offHandSpeed = UnitAttackSpeed("player")
+            if mainHandSpeed == nil then
+                mainHandSpeed = 0
+            end
+            if offHandSpeed == nil then
+                offHandSpeed = 0
+            end
+            local mainHandMaxTime, offHandMaxTime = 0, 0
+            local mainHandTimer, offHandTimer = 0, 0
+            local offhandSwinging = false
+
+            local function IsOffHandWeaponEquipped()
+                local offHandSlot = GetInventoryItemID("player", 17)
+
+                if not offHandSlot then
+                    offHandWeaponEquipped = false
+                    return
+                end
+
+                local itemName, _, _, _, _, itemType, itemSubType = GetItemInfo(offHandSlot)
+                offHandWeaponEquipped = (itemType == "Weapon")
+            end
+
+            local function GetOffHandType()
+
+                local itemName, _, _, _, _, itemType, itemSubType = GetItemInfo(offHandSlot)
+                return itemType, itemSubType, itemName
+            end
+
+             -- Run after player logs in (spellbook is ready)
+            local offHandInspector = CreateFrame("Frame")
+            offHandInspector:RegisterEvent("PLAYER_LOGIN")
+            offHandInspector:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+
+            offHandInspector:SetScript("OnEvent", function()
+                IsOffHandWeaponEquipped()
+                mainHandSpeed, offHandSpeed = UnitAttackSpeed("player")
+                if offHandSpeed == nil then
+                    offHandSpeed = 0
+                end
+                mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
+                offHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
+            end)
 
         -- === MAIN HAND SWING BAR ===
             mainHandSwingBar = CreateFrame("Frame", "SwingTimerFrame", UIParent, "BackdropTemplate")
@@ -185,11 +192,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             --mainHandSwingBar:Show()
             mainHandSwingBar:Hide()
 
-            -- Backdrop for visibility
-            mainHandSwingBar.bg = mainHandSwingBar:CreateTexture(nil, "BACKGROUND")
-            mainHandSwingBar.bg:SetAllPoints(true)
-            mainHandSwingBar.bg:SetColorTexture(0, 0, 0, 0.2)
-
             -- Texture for filling swing bar
             mainHandSwingBar.texture = mainHandSwingBar:CreateTexture(nil, "BACKGROUND")
             mainHandSwingBar.texture:SetColorTexture(defaults.color.r, defaults.color.g, defaults.color.b)
@@ -197,19 +199,24 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             mainHandSwingBar.texture:SetPoint("LEFT", mainHandSwingBar, "LEFT", 2, -2)
             mainHandSwingBar.texture:SetPoint("RIGHT", mainHandSwingBar, "RIGHT", -2, 2)
             mainHandSwingBar.texture:SetHeight(0)
+            
+            -- Backdrop for visibility
+            mainHandSwingBar.bg = mainHandSwingBar:CreateTexture(nil, "BACKGROUND")
+            mainHandSwingBar.bg:SetAllPoints(true)
+            mainHandSwingBar.bg:SetColorTexture(0, 0, 0, 0.2)
 
             -- Icon of casted spell above the bar
             mainHandSwingBar.icon = mainHandSwingBar:CreateTexture(nil, "ARTWORK")
-            mainHandSwingBar.icon:SetSize(defaults.iconWidth*stagedScale, defaults.iconHeight*stagedScale)
-            mainHandSwingBar.icon:SetPoint("BOTTOM", mainHandSwingBar, "TOP", 0, defaults.space*stagedScale)
+            mainHandSwingBar.icon:SetSize(defaults.iconWidth * stagedScale, defaults.iconHeight * stagedScale)
+            mainHandSwingBar.icon:SetPoint("BOTTOM", mainHandSwingBar, "TOP", 0, defaults.space * stagedScale)
             mainHandSwingBar.icon:Hide()
 
             -- Position text below the bar
             mainHandSwingBar.text = mainHandSwingBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             mainHandSwingBar.text:ClearAllPoints()
             mainHandSwingBar.text:SetPoint("TOP", mainHandSwingBar, "BOTTOM", 0, -defaults.space*stagedScale)
-            mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*stagedScale, "OUTLINE")
-            mainHandSwingBar.text:SetText(string.format("%.2f", UnitAttackSpeed("player")))
+            mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * stagedScale, "OUTLINE")
+            mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
 
             -- Create a mainHandSwingBar to act as border container
             mainHandSwingBar.border = CreateFrame("Frame", nil, mainHandSwingBar, "BackdropTemplate")
@@ -224,32 +231,32 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             local function OnUpdate(self, elapsed)
                 if paused then return end
-                elapsedTime = elapsedTime + elapsed
-                if elapsedTime >= mainHandMaxTime then
+                mainHandTimer = mainHandTimer + elapsed
+                if mainHandTimer >= mainHandMaxTime then
                     if not UnitAffectingCombat("player") then
                         self:Hide()
                     else
                         mainHandSwingBar.texture:SetHeight(0)
-                        mainHandSwingBar.text:SetText(string.format("%.2f", UnitAttackSpeed("player")))
+                        mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
                     end
                 else
-                    local remaining = mainHandMaxTime - elapsedTime
+                    local remaining = mainHandMaxTime - mainHandTimer
                     local progress = remaining / mainHandMaxTime
-                    mainHandSwingBar.texture:SetHeight((defaults.barHeight*stagedScale) * progress)
+                    mainHandSwingBar.texture:SetHeight((defaults.barHeight * stagedScale) * progress)
                     mainHandSwingBar.text:SetText(string.format("%.2f", remaining))
                 end
             end
 
             mainHandSwingBar:SetScript("OnUpdate", OnUpdate)
             
-            local function StartSwingTimer(speed)
-                mainHandMaxTime = speed
-                elapsedTime = 0
+            local function StartSwingTimer()
+                mainHandMaxTime = mainHandSpeed
+                mainHandTimer = 0
                 paused = false
                 mainHandSwingBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
-                mainHandSwingBar.texture:SetHeight(defaults.barHeight*stagedScale)
+                mainHandSwingBar.texture:SetHeight(defaults.barHeight * stagedScale)
                 mainHandSwingBar.texture:SetColorTexture(defaults.color.r, defaults.color.g, defaults.color.b)
-                mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*stagedScale, "OUTLINE")
+                mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * stagedScale, "OUTLINE")
                 mainHandSwingBar:Show()
                 resourceBar:Show()
             end
@@ -259,6 +266,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandSwingBar:Hide()
                 mainHandSwingBar.icon:Hide()
                 mainHandSwingBar.icon:SetTexture(nil)
+                mainHandSwingBar.texture:SetHeight(0)
+                offHandSwingBar.texture:SetHeight(0)
                 offHandSwingBar:Hide()
                 resourceBar:SetValue(currentPower)
                 resourceBar:Hide()
@@ -266,11 +275,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
         -- === OFF HAND SWING BAR === -
 
-            offHandSwingBar = CreateFrame("StatusBar", "OffhandSwingBar", UIParent)
-            offHandSwingBar:SetSize(mainHandSwingBar:GetWidth(), mainHandSwingBar:GetHeight())
-            offHandSwingBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
-            offHandSwingBar:SetMinMaxValues(0, 1)
-            offHandSwingBar:SetValue(0)
+            offHandSwingBar = CreateFrame("Frame", "SwingTimerFrame", mainHandSwingBar, "BackdropTemplate")
+            offHandSwingBar:SetMovable(true)
+            offHandSwingBar:EnableMouse(true)
+            offHandSwingBar:RegisterForDrag("LeftButton")
+            offHandSwingBar:SetScript("OnDragStart", offHandSwingBar.StartMoving)
+            offHandSwingBar:SetScript("OnDragStop", function(self)
+                self:StopMovingOrSizing()
+            end)
+            offHandSwingBar:SetSize((defaults.iconWidth * stagedScale), (defaults.barHeight * stagedScale))
+            offHandSwingBar:SetPoint("LEFT", mainHandSwingBar, "RIGHT", 0, 0)
             offHandSwingBar:Hide()
 
             -- Texture for filling swing bar
@@ -280,24 +294,81 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             offHandSwingBar.texture:SetPoint("LEFT", offHandSwingBar, "LEFT", 2, -2)
             offHandSwingBar.texture:SetPoint("RIGHT", offHandSwingBar, "RIGHT", -2, 2)
             offHandSwingBar.texture:SetHeight(0)
-
+            
             -- Backdrop for visibility
             offHandSwingBar.bg = offHandSwingBar:CreateTexture(nil, "BACKGROUND")
             offHandSwingBar.bg:SetAllPoints(true)
             offHandSwingBar.bg:SetColorTexture(0, 0, 0, 0.2)
 
-            -- Position: right side of main-hand swing bar
-            offHandSwingBar:SetPoint("LEFT", mainHandSwingBar, "RIGHT", defaults.space * stagedScale, 0)
+            -- Icon of casted spell above the bar
+            offHandSwingBar.icon = offHandSwingBar:CreateTexture(nil, "ARTWORK")
+            offHandSwingBar.icon:SetSize(defaults.iconWidth * stagedScale, defaults.iconHeight * stagedScale)
+            offHandSwingBar.icon:SetPoint("BOTTOM", offHandSwingBar, "TOP", 0, defaults.space * stagedScale)
+            offHandSwingBar.icon:Hide()
 
-            -- Border
-            offHandSwingBar.border = CreateFrame("Frame", nil, offHandSwingBar, BackdropTemplateMixin and "BackdropTemplate")
+            -- Position text below the bar
+            offHandSwingBar.text = offHandSwingBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            offHandSwingBar.text:ClearAllPoints()
+            offHandSwingBar.text:SetPoint("TOP", offHandSwingBar, "BOTTOM", 0, -defaults.space * stagedScale)
+            offHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * stagedScale, "OUTLINE")
+            offHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
+
+            -- Create a offHandSwingBar to act as border container
+            offHandSwingBar.border = CreateFrame("Frame", nil, offHandSwingBar, "BackdropTemplate")
             offHandSwingBar.border:SetPoint("TOPLEFT", offHandSwingBar, "TOPLEFT", -1 * stagedScale, 1 * stagedScale)
             offHandSwingBar.border:SetPoint("BOTTOMRIGHT", offHandSwingBar, "BOTTOMRIGHT", 1 * stagedScale, -1 * stagedScale)
+
             offHandSwingBar.border:SetBackdrop({
                 edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                edgeSize = 10 * stagedScale,
+                edgeSize = 10 * stagedScale
             })
             offHandSwingBar.border:SetBackdropBorderColor(1, 1, 1)
+
+            local _, ohSpeed = UnitAttackSpeed("player") -- second return = off-hand
+            local ohTimer = ohSpeed
+
+            local function StartOffhandSwing()
+                if stagedShowOffHandSwingBar == false then return end
+                offhandSwinging = true
+                offHandMaxTime = offHandSpeed
+                offHandTimer = 0
+                paused = false
+                offHandSwingBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
+                offHandSwingBar.texture:SetHeight(defaults.barHeight * stagedScale)
+                offHandSwingBar.texture:SetColorTexture(defaults.color.r, defaults.color.g, defaults.color.b)
+                offHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*stagedScale, "OUTLINE")
+                offHandSwingBar:Show()
+            end
+
+            local function StopOffhandSwing()
+                ohTimer = ohSpeed
+                offhandSwinging = false
+                offHandSwingBar.texture:SetHeight(0)
+                offHandSwingBar:Hide()
+            end
+
+
+            offHandSwingBar:SetScript("OnUpdate", function(self, elapsed)     
+                if paused then return end
+
+                offHandTimer = offHandTimer + elapsed
+
+                if offhandSwinging then
+                    if offHandTimer >= offHandMaxTime then
+                        if not UnitAffectingCombat("player") then
+                            self:Hide()
+                        else
+                            offHandSwingBar.texture:SetHeight(0)
+                            offHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
+                        end
+                    else
+                        local remaining = offHandMaxTime - offHandTimer
+                        local progress = remaining / offHandMaxTime
+                        offHandSwingBar.texture:SetHeight((defaults.barHeight * stagedScale) * progress)
+                        offHandSwingBar.text:SetText(string.format("%.2f", remaining))
+                    end
+                end
+            end)
 
         -- === DEBUFF BAR ===
 
@@ -547,11 +618,27 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     end
 
                 elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-                    local timestamp, subevent, _, sourceGUID, _, _, _, destGUID, destName, _, _, spellID, spellName = CombatLogGetCurrentEventInfo()
+                    
+                    local timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, _, _, _, _, _, _, _, isOffHand = CombatLogGetCurrentEventInfo()
 
                     if sourceGUID == UnitGUID("player") then
 
-                        if subevent == "SWING_DAMAGE" or subevent == "SWING_MISSED" then
+                        if subevent == "SWING_DAMAGE" then
+
+                            local timestamp, subEvent, hideCaster,
+                            sourceGUID, sourceName, sourceFlags, sourceRaidFlags,
+                            destGUID, destName, destFlags, destRaidFlags,
+                            amount,        -- damage done
+                            overkill,      -- excess damage (can be -1 if none)
+                            school,        -- damage school (1 = physical, 4 = fire, etc.)
+                            resisted,      -- damage resisted
+                            blocked,       -- damage blocked
+                            absorbed,      -- damage absorbed
+                            critical,      -- true if crit
+                            glancing,      -- true if glancing blow
+                            crushing,      -- true if crushing blow
+                            isOffHand      -- true if this was an off-hand swing
+                            = CombatLogGetCurrentEventInfo()
 
                             if not UnitExists("target") or not UnitCanAttack("player", "target") then return end
 
@@ -563,10 +650,47 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                             mainHandSwingBar.icon:Hide()
                             isQueuedSpellActive = false
 
-                            local speed = UnitAttackSpeed("player")
-                            if speed then
-                                StartSwingTimer(speed)
+                            local speedMain, speedOff = UnitAttackSpeed("player")
+
+                            if speedMain and isOffHand == false then
+                                StartSwingTimer()
                             end
+
+                            if speedOff and isOffHand == true then
+                                StartOffhandSwing()
+                            end
+                            
+                        
+                        elseif subevent == "SWING_MISSED" then
+
+                            local timestamp, subEvent, hideCaster,
+                            sourceGUID, sourceName, sourceFlags, sourceRaidFlags,
+                            destGUID, destName, destFlags, destRaidFlags,
+                            missType,      -- "DODGE", "PARRY", "MISS", "BLOCK", etc.
+                            isOffHand,     -- true if this was an off-hand swing
+                            amountMissed   -- only set for "BLOCK" or "ABSORB"
+                            = CombatLogGetCurrentEventInfo()
+
+                            if not UnitExists("target") or not UnitCanAttack("player", "target") then return end
+
+                            local spellName = GetSpellInfo(spellID)
+                            if spellName == "Throw" then return end
+
+                            queuedSpellName = nil
+                            queuedSpellTexture = nil
+                            mainHandSwingBar.icon:Hide()
+                            isQueuedSpellActive = false
+
+                            local speedMain, speedOff = UnitAttackSpeed("player")
+
+                            if speedMain and isOffHand == false then
+                                StartSwingTimer()
+                            end
+
+                            if speedOff and isOffHand == true then
+                                StartOffhandSwing()
+                            end
+
 
                         elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_MISSED" then
 
@@ -581,10 +705,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                                 mainHandSwingBar.icon:Hide()
                                 isQueuedSpellActive = false
 
-                                local speed = UnitAttackSpeed("player")
-                                if speed then
-                                    StartSwingTimer(speed)
-                                end
+                                StartSwingTimer()
                             else
                                 -- Do nothing: a non-swing-replacing spell like Rend was used
                             end
@@ -610,6 +731,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 -- Player is out of combat
                 elseif event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_LOGIN" then
                     mainHandMaxTime=0
+                    offHandMaxTime=0
                     mainHandSwingBar:Hide()
                     mainHandSwingBar.icon:Hide()
                     queuedSpellName = nil
@@ -620,12 +742,17 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
                 -- Player is in combat    
                 elseif event == "PLAYER_REGEN_DISABLED" then
+                    if not UnitExists("target") then return end
                     paused=false
                     settings:Hide()
-                    mainHandSwingBar.text:SetText(string.format("%.2f", UnitAttackSpeed("player")))
+                    mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
                     UpdateResourceBar()
                     UpdateDebuffBar()
                     mainHandSwingBar:Show()
+                    if stagedShowOffHandSwingBar and offHandWeaponEquipped then
+                        mainHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
+                        offHandSwingBar:Show()
+                    end
                     resourceBar:Show()
 
                 elseif event == "PLAYER_TARGET_CHANGED" then
@@ -641,6 +768,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     elseif UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsDeadOrGhost("target") then
                         -- New hostile target — reset timer
                         mainHandMaxTime=0
+                        offHandMaxTime=0
                         --HideBar()
                     end
                     UpdateDebuffBar()
@@ -652,10 +780,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local function ShowPausedBar()
                 local speed = UnitAttackSpeed("player") or 1
                 mainHandMaxTime = speed
-                elapsedTime = 0
+                mainHandTimer = 0
                 paused = true
                 mainHandSwingBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
                 mainHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * stagedScale)
+                mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
                 mainHandSwingBar.icon:SetTexture(select(3, GetSpellInfo(78)))
                 mainHandSwingBar.icon:Show()
                 mainHandSwingBar:Show()
@@ -665,7 +794,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 resourceBar:Show()
                 ShowTemporaryDebuffs()
                 offHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * stagedScale)
-                if(stagedShowOffHandSwingBar and enableOffHandSwingBar) then
+                offHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
+                if(stagedShowOffHandSwingBar and offHandWeaponEquipped) then
                     offHandSwingBar:Show()
                 end
             end
@@ -763,13 +893,15 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*settingsTemporaryValues.scale, "OUTLINE")
                 mainHandSwingBar.text:SetPoint("TOP", mainHandSwingBar, "BOTTOM", 0, -defaults.space * settingsTemporaryValues.scale)
 
-                offHandSwingBar:SetSize(mainHandSwingBar:GetWidth(), mainHandSwingBar:GetHeight())
-                offHandSwingBar:SetPoint("LEFT", mainHandSwingBar, "RIGHT", defaults.space * settingsTemporaryValues.scale, 0)
+                offHandSwingBar:SetSize((defaults.iconWidth * settingsTemporaryValues.scale), (defaults.barHeight * settingsTemporaryValues.scale))
                 offHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * settingsTemporaryValues.scale)
-
+                
                 offHandSwingBar.border:SetPoint("TOPLEFT", offHandSwingBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
                 offHandSwingBar.border:SetPoint("BOTTOMRIGHT", offHandSwingBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
                 offHandSwingBar.border:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 * settingsTemporaryValues.scale})
+
+                offHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*settingsTemporaryValues.scale, "OUTLINE")
+                offHandSwingBar.text:SetPoint("TOP", offHandSwingBar, "BOTTOM", 0, -defaults.space * settingsTemporaryValues.scale)
                 
                 debuffBar:SetSize(defaults.iconWidth * settingsTemporaryValues.scale, defaults.barHeight * settingsTemporaryValues.scale)
                 debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -defaults.space * settingsTemporaryValues.scale, 0)
@@ -813,15 +945,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             offhandCheckbox:SetChecked(stagedShowOffHandSwingBar)
 
             function offhandCheckbox:CheckboxChange(isChecked)
-                print(enableOffHandSwingBar)
                 if isChecked then
-                    print("Feature enabled")
                     self:SetChecked(true)
-                    if enableOffHandSwingBar then offHandSwingBar:Show() end
+                    if offHandWeaponEquipped then offHandSwingBar:Show() end
                 else
-                    print("Feature disabled")
                     self:SetChecked(false)
-                    if enableOffHandSwingBar then offHandSwingBar:Hide() end
+                    if offHandWeaponEquipped then offHandSwingBar:Hide() end
                 end
             end
 
@@ -905,16 +1034,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     UIErrorsFrame:AddMessage("Cannot open settings while in combat.", 1, 0, 0, 1, 53)
                     return
                 end
-
-                -- Show your settings mainHandSwingBar here
-
-                
                 modalFrame:Show()
                 settings:Show()
                 ShowPausedBar()
             end
 
             SwingTimerSettingsFrame:SetScript("OnHide", function(self)
+                mainHandSwingBar.texture:SetHeight(0)
+                offHandSwingBar.texture:SetHeight(0)
                 modalFrame:Hide()
                 HideBar()
             end)
