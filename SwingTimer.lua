@@ -14,7 +14,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             position = { x = -107.5556945800781, y = -0.4321538805961609 },
             opacity = 0.8,
             barHeight = 151,
-            fontSize = 10,
+            fontSize = 9,
             iconHeight = 24,
             iconWidth = 24,
             scale = 1.2,
@@ -127,6 +127,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             local mainHandSwingBar -- MAIN HAND SWING BAR
             local offHandSwingBar -- OFF HAND SWING BAR
+            local enemyHealthBar -- ENEMY HEALTH BAR
             local debuffBar -- DEBUFF BAR
             local resourceBar -- RESOURCE BAR
             local events -- EVENT TRACKING
@@ -264,13 +265,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local function HideBar()
                 paused = false
                 mainHandSwingBar:Hide()
+                offHandSwingBar:Hide()
+                enemyHealthBar:Hide()
+                resourceBar:Hide()
                 mainHandSwingBar.icon:Hide()
                 mainHandSwingBar.icon:SetTexture(nil)
                 mainHandSwingBar.texture:SetHeight(0)
                 offHandSwingBar.texture:SetHeight(0)
-                offHandSwingBar:Hide()
+                enemyHealthBar.texture:SetHeight(0)
                 resourceBar:SetValue(currentPower)
-                resourceBar:Hide()
+                
             end
 
         -- === OFF HAND SWING BAR === -
@@ -369,12 +373,104 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     end
                 end
             end)
+        
+        -- === ENEMY HEALTH BAR ===
+
+            enemyHealthBar = CreateFrame("Frame", "SwingTimerEnemyHealthBar", UIParent)
+            enemyHealthBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
+            enemyHealthBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -defaults.space * stagedScale, 0) -- Left side of enemy health bar
+            enemyHealthBar:Hide()
+
+            -- Backdrop for visibility
+            enemyHealthBar.bg = enemyHealthBar:CreateTexture(nil, "BACKGROUND")
+            enemyHealthBar.bg:SetAllPoints(true)
+            enemyHealthBar.bg:SetColorTexture(0, 0, 0, 0.2)
+
+            -- Create a enemyHealthBar to act as border container
+            enemyHealthBar.border = CreateFrame("Frame", nil, enemyHealthBar, "BackdropTemplate")
+            enemyHealthBar.border:SetPoint("TOPLEFT", enemyHealthBar, "TOPLEFT", -1 * stagedScale, 1 * stagedScale)
+            enemyHealthBar.border:SetPoint("BOTTOMRIGHT", enemyHealthBar, "BOTTOMRIGHT", 1 * stagedScale, -1 * stagedScale)
+
+            enemyHealthBar.border:SetBackdrop({
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 10 * stagedScale
+            })
+            enemyHealthBar.border:SetBackdropBorderColor(1, 1, 1)
+
+            -- Health texture (fills vertically)
+            enemyHealthBar.texture = enemyHealthBar:CreateTexture(nil, "ARTWORK")
+            enemyHealthBar.texture:SetColorTexture(0, 1, 0, 1) -- default green
+            enemyHealthBar.texture:SetPoint("BOTTOM", enemyHealthBar, "BOTTOM", -2, 1)
+            enemyHealthBar.texture:SetPoint("LEFT", enemyHealthBar, "LEFT", 2, -2)
+            enemyHealthBar.texture:SetPoint("RIGHT", enemyHealthBar, "RIGHT", -2, 2)
+            enemyHealthBar.texture:SetHeight(0)
+
+            -- Position text below the bar
+            enemyHealthBar.text = enemyHealthBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            enemyHealthBar.text:ClearAllPoints()
+            enemyHealthBar.text:SetPoint("TOP", enemyHealthBar, "BOTTOM", 0 + stagedScale, -defaults.space * stagedScale)
+            enemyHealthBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * stagedScale, "OUTLINE")
+            enemyHealthBar.text:SetText(string.format("%d%%", 0))
+
+            -- Update function
+            local function UpdateEnemyHealth()
+                if not UnitAffectingCombat("player") then return end
+
+                local unit = "target"
+                if UnitExists(unit) and not UnitIsDead(unit) then
+                    local hp, maxHp = UnitHealth(unit), UnitHealthMax(unit)
+                    local percent = 0
+                    if maxHp > 0 then
+                        percent = hp / maxHp
+                    end
+
+                    -- Update texture height
+                    local height = enemyHealthBar:GetHeight() * percent
+                    enemyHealthBar.texture:SetSize(enemyHealthBar:GetWidth(), height)
+
+                    -- Update percenatege under the bar
+                    print(percent*100)
+                    enemyHealthBar.text:SetText(string.format("%d%%", math.floor((percent*100)+0.5)))
+
+                    -- Reposition so it drains downward
+                    enemyHealthBar.texture:ClearAllPoints()
+                    enemyHealthBar.texture:SetPoint("BOTTOM", enemyHealthBar, "BOTTOM", -2, 1)
+                    enemyHealthBar.texture:SetPoint("LEFT", enemyHealthBar, "LEFT", 2, -2)
+                    enemyHealthBar.texture:SetPoint("RIGHT", enemyHealthBar, "RIGHT", -2, 2)
+
+                    -- Class color if target is player
+                    if UnitIsPlayer(unit) then
+                        local _, class = UnitClass(unit)
+                        local color = RAID_CLASS_COLORS[class]
+                        if color then
+                            enemyHealthBar.texture:SetColorTexture(color.r, color.g, color.b, 1)
+                        end
+                    else
+                        enemyHealthBar.texture:SetColorTexture(0, 1, 0, 1) -- green for NPC
+                    end
+
+                    enemyHealthBar:Show()
+                else
+                    enemyHealthBar.text:SetText(string.format("%d%%", 0))
+                    enemyHealthBar:Hide()
+                end
+            end
+
+            -- Events
+            enemyHealthBar:RegisterEvent("UNIT_HEALTH")
+            enemyHealthBar:RegisterEvent("UNIT_MAXHEALTH")
+            enemyHealthBar:RegisterEvent("PLAYER_TARGET_CHANGED")
+            enemyHealthBar:SetScript("OnEvent", function(_, event, unit)
+                if event == "PLAYER_TARGET_CHANGED" or unit == "target" then
+                    UpdateEnemyHealth()
+                end
+            end)
 
         -- === DEBUFF BAR ===
 
             debuffBar = CreateFrame("Frame", "SwingTimerDebuffBar", mainHandSwingBar)
             debuffBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
-            debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -defaults.space * stagedScale, 0) -- Left side of swing bar
+            debuffBar:SetPoint("RIGHT", enemyHealthBar, "LEFT", -defaults.space * stagedScale, 0) -- Left side of enemy health bar
             debuffBar:SetAlpha(stagedOpacity)
             debuffBar.icons = {}
 
@@ -422,7 +518,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.texture = icon:CreateTexture(nil, "ARTWORK")
                         icon.texture:SetAllPoints()
                         icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
+                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0 + stagedScale, 1 * stagedScale)
                         icon.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*stagedScale, "OUTLINE")
                         icon.stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                         debuffBar.icons[i] = icon
@@ -472,7 +568,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                         icon.texture = icon:CreateTexture(nil, "ARTWORK")
                         icon.texture:SetAllPoints()
                         icon.text = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * stagedScale)
+                        icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0 + stagedScale, 1 * stagedScale)
                         icon.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * stagedScale, "OUTLINE")
                         icon.stackText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                         debuffBar.icons[i] = icon
@@ -748,7 +844,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
                     UpdateResourceBar()
                     UpdateDebuffBar()
+                    UpdateEnemyHealth()
                     mainHandSwingBar:Show()
+                    enemyHealthBar:Show()
                     if stagedShowOffHandSwingBar and offHandWeaponEquipped then
                         mainHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
                         offHandSwingBar:Show()
@@ -788,23 +886,28 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandSwingBar.icon:SetTexture(select(3, GetSpellInfo(78)))
                 mainHandSwingBar.icon:Show()
                 mainHandSwingBar:Show()
+                enemyHealthBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
+                enemyHealthBar.texture:SetHeight((defaults.barHeight / 2) * stagedScale)
+                enemyHealthBar.text:SetText(string.format("%d%%", 50))
+                enemyHealthBar:Show()
                 resourceBar:SetMinMaxValues(0,100)
                 resourceBar.text:SetText(string.format("%d / %d", 0, 100))
                 resourceBar:SetValue(50)
                 resourceBar:Show()
                 ShowTemporaryDebuffs()
-                offHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * stagedScale)
-                offHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
                 if(stagedShowOffHandSwingBar and offHandWeaponEquipped) then
+                    offHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * stagedScale)
+                    offHandSwingBar.text:SetText(string.format("%.2f", offHandSpeed))
                     offHandSwingBar:Show()
                 end
             end
 
             local function ReloadOpacity(opacityVal)
                 mainHandSwingBar:SetAlpha(opacityVal)
+                offHandSwingBar:SetAlpha(opacityVal)
+                enemyHealthBar:SetAlpha(opacityVal)
                 debuffBar:SetAlpha(opacityVal)
                 resourceBar:SetAlpha(opacityVal)
-                offHandSwingBar:SetAlpha(opacityVal)
             end
 
             -- Frame for prevent mouse and keys actions on the background
@@ -857,14 +960,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             -- Scale Slider
             local scaleSlider = CreateFrame("Slider", "SwingTimerScaleSlider", settings, "OptionsSliderTemplate")
             scaleSlider:SetWidth(250)
-            scaleSlider:SetMinMaxValues(0.5, 2.0)
+            scaleSlider:SetMinMaxValues(1, 2.0)
             scaleSlider:SetValueStep(0.1)
             scaleSlider:SetObeyStepOnDrag(true)
             scaleSlider:SetPoint("TOP", settings, "TOP", 0, -95)
             
             _G[scaleSlider:GetName() .. "Low"]:ClearAllPoints()
             _G[scaleSlider:GetName() .. "Low"]:SetPoint("BOTTOMLEFT", scaleSlider, "TOP", -(scaleSlider:GetWidth()/2)+5, -30)
-            _G[scaleSlider:GetName() .. "Low"]:SetText("0.5")
+            _G[scaleSlider:GetName() .. "Low"]:SetText("1")
             
             _G[scaleSlider:GetName() .. "High"]:ClearAllPoints()
             _G[scaleSlider:GetName() .. "High"]:SetPoint("BOTTOMRIGHT", scaleSlider, "TOP", (scaleSlider:GetWidth()/2)-5, -30)
@@ -881,6 +984,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 settingsTemporaryValues.scale = value
                 
                 mainHandSwingBar:SetSize((defaults.iconWidth * settingsTemporaryValues.scale), (defaults.barHeight * settingsTemporaryValues.scale))
+                
                 mainHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * settingsTemporaryValues.scale)
 
                 mainHandSwingBar.border:SetPoint("TOPLEFT", mainHandSwingBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
@@ -890,36 +994,51 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandSwingBar.icon:SetSize(defaults.iconWidth * settingsTemporaryValues.scale, defaults.iconHeight*settingsTemporaryValues.scale)
                 mainHandSwingBar.icon:SetPoint("BOTTOM", mainHandSwingBar, "TOP", 0, defaults.space * settingsTemporaryValues.scale)
 
-                mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*settingsTemporaryValues.scale, "OUTLINE")
+                mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * settingsTemporaryValues.scale, "OUTLINE")
                 mainHandSwingBar.text:SetPoint("TOP", mainHandSwingBar, "BOTTOM", 0, -defaults.space * settingsTemporaryValues.scale)
 
                 offHandSwingBar:SetSize((defaults.iconWidth * settingsTemporaryValues.scale), (defaults.barHeight * settingsTemporaryValues.scale))
+                offHandSwingBar:SetPoint("LEFT", mainHandSwingBar, "RIGHT", 0, 0)
+
                 offHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * settingsTemporaryValues.scale)
                 
                 offHandSwingBar.border:SetPoint("TOPLEFT", offHandSwingBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
                 offHandSwingBar.border:SetPoint("BOTTOMRIGHT", offHandSwingBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
                 offHandSwingBar.border:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 * settingsTemporaryValues.scale})
 
-                offHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize*settingsTemporaryValues.scale, "OUTLINE")
+                offHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * settingsTemporaryValues.scale, "OUTLINE")
                 offHandSwingBar.text:SetPoint("TOP", offHandSwingBar, "BOTTOM", 0, -defaults.space * settingsTemporaryValues.scale)
+
+                enemyHealthBar:SetSize((defaults.iconWidth * settingsTemporaryValues.scale), (defaults.barHeight * settingsTemporaryValues.scale))
+                enemyHealthBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -defaults.space * settingsTemporaryValues.scale, 0)
+
+                enemyHealthBar.texture:SetHeight((defaults.barHeight / 2) * settingsTemporaryValues.scale)
+                
+                enemyHealthBar.border:SetPoint("TOPLEFT", enemyHealthBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
+                enemyHealthBar.border:SetPoint("BOTTOMRIGHT", enemyHealthBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
+                enemyHealthBar.border:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 * settingsTemporaryValues.scale})
+
+                enemyHealthBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * settingsTemporaryValues.scale, "OUTLINE")
+                enemyHealthBar.text:SetPoint("TOP", enemyHealthBar, "BOTTOM", 0 + settingsTemporaryValues.scale, -defaults.space * settingsTemporaryValues.scale)
                 
                 debuffBar:SetSize(defaults.iconWidth * settingsTemporaryValues.scale, defaults.barHeight * settingsTemporaryValues.scale)
-                debuffBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -defaults.space * settingsTemporaryValues.scale, 0)
+                debuffBar:SetPoint("RIGHT", enemyHealthBar, "LEFT", -defaults.space * settingsTemporaryValues.scale, 0)
                 
                 for i=1, 6 do
                     local icon = debuffBar.icons[i]
                     icon:SetSize(defaults.iconWidth * settingsTemporaryValues.scale, defaults.iconHeight * settingsTemporaryValues.scale)
                     icon.texture:SetAllPoints()
-                    icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1 * settingsTemporaryValues.scale)
-                    icon.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * settingsTemporaryValues.scale, "OUTLINE")
                     if not i == 6 then
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((defaults.iconHeight * settingsTemporaryValues.scale) + 0)))    
                     else
                         icon:SetPoint("TOP", debuffBar, "TOP", 0, -((i - 1) * ((defaults.iconHeight * settingsTemporaryValues.scale) + (1.5 * settingsTemporaryValues.scale))))
                     end
 
-                    icon.stackText:SetPoint("RIGHT", icon, "LEFT", -(defaults.fontSize * settingsTemporaryValues.scale / 2), 0)
+                    icon.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * settingsTemporaryValues.scale, "OUTLINE")
+                    icon.text:SetPoint("BOTTOM", icon, "BOTTOM", 0 + settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
+
                     icon.stackText:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * settingsTemporaryValues.scale, "OUTLINE")
+                    icon.stackText:SetPoint("RIGHT", icon, "LEFT", -(defaults.fontSize * settingsTemporaryValues.scale / 2), 0)
 
                     debuffBar.icons[i] = icon
                 end
@@ -1040,8 +1159,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end
 
             SwingTimerSettingsFrame:SetScript("OnHide", function(self)
-                mainHandSwingBar.texture:SetHeight(0)
-                offHandSwingBar.texture:SetHeight(0)
                 modalFrame:Hide()
                 HideBar()
             end)
