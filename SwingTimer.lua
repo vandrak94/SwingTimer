@@ -416,9 +416,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             local function UpdateEnemyHealth()
                 if not UnitAffectingCombat("player") then return end
 
-                local unit = "target"
-                if UnitExists(unit) and not UnitIsDead(unit) then
-                    local hp, maxHp = UnitHealth(unit), UnitHealthMax(unit)
+                if UnitExists("target") and not UnitIsDead("target") and UnitCanAttack("player", "target") then
+                    local hp, maxHp = UnitHealth("target"), UnitHealthMax("target")
                     local percent = 0
                     if maxHp > 0 then
                         percent = hp / maxHp
@@ -429,7 +428,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     enemyHealthBar.texture:SetSize(enemyHealthBar:GetWidth(), height)
 
                     -- Update percenatege under the bar
-                    print(percent*100)
                     enemyHealthBar.text:SetText(string.format("%d%%", math.floor((percent*100)+0.5)))
 
                     -- Reposition so it drains downward
@@ -439,8 +437,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     enemyHealthBar.texture:SetPoint("RIGHT", enemyHealthBar, "RIGHT", -2, 2)
 
                     -- Class color if target is player
-                    if UnitIsPlayer(unit) then
-                        local _, class = UnitClass(unit)
+                    if UnitIsPlayer("target") then
+                        local _, class = UnitClass("target")
                         local color = RAID_CLASS_COLORS[class]
                         if color then
                             enemyHealthBar.texture:SetColorTexture(color.r, color.g, color.b, 1)
@@ -838,7 +836,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
                 -- Player is in combat    
                 elseif event == "PLAYER_REGEN_DISABLED" then
-                    if not UnitExists("target") then return end
+                    if not UnitExists("target") or not UnitCanAttack("player", "target") then return end
                     paused=false
                     settings:Hide()
                     mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
