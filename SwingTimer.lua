@@ -243,7 +243,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 else
                     local remaining = mainHandMaxTime - mainHandTimer
                     local progress = remaining / mainHandMaxTime
-                    mainHandSwingBar.texture:SetHeight((defaults.barHeight * stagedScale) * progress)
+                    mainHandSwingBar.texture:SetHeight(((defaults.barHeight - 2) * stagedScale) * progress)
                     mainHandSwingBar.text:SetText(string.format("%.2f", remaining))
                 end
             end
@@ -255,7 +255,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandTimer = 0
                 paused = false
                 mainHandSwingBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
-                mainHandSwingBar.texture:SetHeight(defaults.barHeight * stagedScale)
+                mainHandSwingBar.texture:SetHeight((defaults.barHeight - 2) * stagedScale)
                 mainHandSwingBar.texture:SetColorTexture(defaults.color.r, defaults.color.g, defaults.color.b)
                 mainHandSwingBar.text:SetFont("Fonts\\FRIZQT__.TTF", defaults.fontSize * stagedScale, "OUTLINE")
                 mainHandSwingBar:Show()
@@ -399,7 +399,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
             -- Health texture (fills vertically)
             enemyHealthBar.texture = enemyHealthBar:CreateTexture(nil, "ARTWORK")
-            enemyHealthBar.texture:SetColorTexture(0, 1, 0, 1) -- default green
+            enemyHealthBar.texture:SetColorTexture(FACTION_BAR_COLORS[2].r, FACTION_BAR_COLORS[2].g, FACTION_BAR_COLORS[2].b, 1)
             enemyHealthBar.texture:SetPoint("BOTTOM", enemyHealthBar, "BOTTOM", -2, 1)
             enemyHealthBar.texture:SetPoint("LEFT", enemyHealthBar, "LEFT", 2, -2)
             enemyHealthBar.texture:SetPoint("RIGHT", enemyHealthBar, "RIGHT", -2, 2)
@@ -424,7 +424,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     end
 
                     -- Update texture height
-                    local height = enemyHealthBar:GetHeight() * percent
+                    local height = (enemyHealthBar:GetHeight() - 2 ) * percent
                     enemyHealthBar.texture:SetSize(enemyHealthBar:GetWidth(), height)
 
                     -- Update percenatege under the bar
@@ -444,12 +444,15 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                             enemyHealthBar.texture:SetColorTexture(color.r, color.g, color.b, 1)
                         end
                     else
-                        enemyHealthBar.texture:SetColorTexture(0, 1, 0, 1) -- green for NPC
+                        local reaction = UnitReaction("player", "target")
+                        local color = FACTION_BAR_COLORS[reaction]
+                        enemyHealthBar.texture:SetColorTexture(color.r, color.g, color.b, 1)
                     end
 
                     enemyHealthBar:Show()
                 else
                     enemyHealthBar.text:SetText(string.format("%d%%", 0))
+                    enemyHealthBar.texture:SetColorTexture(FACTION_BAR_COLORS[2].r, FACTION_BAR_COLORS[2].g, FACTION_BAR_COLORS[2].b, 1)
                     enemyHealthBar:Hide()
                 end
             end
@@ -833,6 +836,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     isQueuedSpellActive = false
                     UpdateResourceBar()
                     UpdateDebuffBar()
+                    UpdateEnemyHealth()
 
                 -- Player is in combat    
                 elseif event == "PLAYER_REGEN_DISABLED" then
@@ -879,13 +883,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 mainHandTimer = 0
                 paused = true
                 mainHandSwingBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
-                mainHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * stagedScale)
+                mainHandSwingBar.texture:SetHeight(((defaults.barHeight - 2) / 2) * stagedScale)
                 mainHandSwingBar.text:SetText(string.format("%.2f", mainHandSpeed))
                 mainHandSwingBar.icon:SetTexture(select(3, GetSpellInfo(78)))
                 mainHandSwingBar.icon:Show()
                 mainHandSwingBar:Show()
                 enemyHealthBar:SetSize(defaults.iconWidth * stagedScale, defaults.barHeight * stagedScale)
-                enemyHealthBar.texture:SetHeight((defaults.barHeight / 2) * stagedScale)
+                enemyHealthBar.texture:SetHeight(((defaults.barHeight -2) / 2) * stagedScale)
                 enemyHealthBar.text:SetText(string.format("%d%%", 50))
                 enemyHealthBar:Show()
                 resourceBar:SetMinMaxValues(0,100)
@@ -983,7 +987,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 
                 mainHandSwingBar:SetSize((defaults.iconWidth * settingsTemporaryValues.scale), (defaults.barHeight * settingsTemporaryValues.scale))
                 
-                mainHandSwingBar.texture:SetHeight((defaults.barHeight / 2) * settingsTemporaryValues.scale)
+                mainHandSwingBar.texture:SetHeight(((defaults.barHeight - 2) / 2) * settingsTemporaryValues.scale)
 
                 mainHandSwingBar.border:SetPoint("TOPLEFT", mainHandSwingBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
                 mainHandSwingBar.border:SetPoint("BOTTOMRIGHT", mainHandSwingBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
@@ -1010,7 +1014,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 enemyHealthBar:SetSize((defaults.iconWidth * settingsTemporaryValues.scale), (defaults.barHeight * settingsTemporaryValues.scale))
                 enemyHealthBar:SetPoint("RIGHT", mainHandSwingBar, "LEFT", -defaults.space * settingsTemporaryValues.scale, 0)
 
-                enemyHealthBar.texture:SetHeight((defaults.barHeight / 2) * settingsTemporaryValues.scale)
+                enemyHealthBar.texture:SetHeight(((defaults.barHeight - 2) / 2) * settingsTemporaryValues.scale)
                 
                 enemyHealthBar.border:SetPoint("TOPLEFT", enemyHealthBar, "TOPLEFT", -1 * settingsTemporaryValues.scale, 1 * settingsTemporaryValues.scale)
                 enemyHealthBar.border:SetPoint("BOTTOMRIGHT", enemyHealthBar, "BOTTOMRIGHT", 1 * settingsTemporaryValues.scale, -1 * settingsTemporaryValues.scale)
